@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* Huisraad — warm, rustig, editorial. Licht als basis, donker volgt het systeem. */
+:root {
+  --bg: #f6f2ec;
+  --surface: #fffdf9;
+  --surface-2: #efe9e0;
+  --line: #e2d9cc;
+  --ink: #2a2520;
+  --ink-2: #6b6158;
+  --ink-3: #9a8f84;
+  --accent: #a4593b;      /* terracotta */
+  --accent-ink: #ffffff;
+  --accent-soft: #f3e2d8;
+  --olive: #5f6b4e;
+  --olive-soft: #e6e9dc;
+  --danger: #b3412e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1916;
+    --surface: #24211d;
+    --surface-2: #2d2924;
+    --line: #3a352f;
+    --ink: #f1ebe3;
+    --ink-2: #c2b8ac;
+    --ink-3: #8e8478;
+    --accent: #d57e5b;
+    --accent-ink: #1b1916;
+    --accent-soft: #3d2a21;
+    --olive: #a7b48f;
+    --olive-soft: #2f3327;
+    --danger: #e0775f;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-olive: var(--olive);
+  --color-olive-soft: var(--olive-soft);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-fraunces);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none bg-accent text-accent-ink hover:brightness-110;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none text-ink-2 hover:bg-surface-2 hover:text-ink;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none border border-line bg-surface text-ink hover:bg-surface-2;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink placeholder:text-ink-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink-3;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-sm text-ink-2 transition hover:border-ink-3;
+  }
+  .chip[data-on="true"] {
+    @apply border-accent bg-accent-soft text-ink;
+  }
+  .prose-advice {
+    @apply text-[15px] leading-relaxed;
+  }
+  .prose-advice h1,
+  .prose-advice h2,
+  .prose-advice h3 {
+    @apply mt-4 mb-1.5 font-semibold text-ink;
+  }
+  .prose-advice ul {
+    @apply my-2 list-disc pl-5;
+  }
+  .prose-advice ol {
+    @apply my-2 list-decimal pl-5;
+  }
+  .prose-advice p {
+    @apply my-2;
+  }
+  .prose-advice strong {
+    @apply font-semibold;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
