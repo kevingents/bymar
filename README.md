@@ -14,8 +14,8 @@ Een app die je helpt met elk interieurproject, van idee tot klaar.
 - Next.js 16 (App Router) + Tailwind 4, te installeren als app op de telefoon (PWA).
 - **Supabase** voor inloggen (e-mailcode), database en foto-opslag. Alles is per gebruiker afgeschermd met row level security.
 - **Vercel AI Gateway** via de AI SDK:
-  - tekst: `anthropic/claude-opus-5-5` (advies, bouwplannen, inkooplijst, indeling)
-  - beeld: `google/gemini-3.1-flash-image-preview` (nieuw beeld en foto restylen)
+  - tekst: `anthropic/claude-opus-5.5` (advies, bouwplannen, inkooplijst, indeling)
+  - beeld: `google/gemini-3.1-flash-image` (nieuw beeld en foto restylen)
   - andere modellen kies je met `HUISRAAD_TEXT_MODEL` / `HUISRAAD_IMAGE_MODEL`.
 - 3D met three.js / React Three Fiber.
 

@@ -4,8 +4,21 @@ import { useRef, useState } from "react";
 import { Icon } from "./Icon";
 
 /** Voor/na-schuif: sleep de lijn om de oude en nieuwe kamer te vergelijken. */
-export function BeforeAfter({ before, after }: { before: string; after: string }) {
-  const [pos, setPos] = useState(50);
+export function BeforeAfter({
+  before,
+  after,
+  fill = false,
+  className = "",
+  start = 50,
+}: {
+  before: string;
+  after: string;
+  /** Vult de container (bijv. op de startpagina) in plaats van de beeldmaat te volgen. */
+  fill?: boolean;
+  className?: string;
+  start?: number;
+}) {
+  const [pos, setPos] = useState(start);
   const box = useRef<HTMLDivElement>(null);
 
   function move(clientX: number) {
@@ -17,7 +30,7 @@ export function BeforeAfter({ before, after }: { before: string; after: string }
   return (
     <div
       ref={box}
-      className="relative max-h-full max-w-full touch-none select-none overflow-hidden rounded-lg"
+      className={`relative touch-none select-none overflow-hidden ${fill ? "h-full w-full cursor-ew-resize" : "max-h-full max-w-full rounded-lg"} ${className}`}
       onPointerDown={(e) => {
         (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
         move(e.clientX);
@@ -25,7 +38,12 @@ export function BeforeAfter({ before, after }: { before: string; after: string }
       onPointerMove={(e) => e.buttons && move(e.clientX)}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={after} alt="Na" className="block max-h-[78dvh] w-auto max-w-full object-contain" draggable={false} />
+      <img
+        src={after}
+        alt="Na"
+        className={fill ? "absolute inset-0 h-full w-full object-cover" : "block max-h-[78dvh] w-auto max-w-full object-contain"}
+        draggable={false}
+      />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={before}
@@ -40,8 +58,8 @@ export function BeforeAfter({ before, after }: { before: string; after: string }
           <Icon name="swap" size={18} />
         </div>
       </div>
-      <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">Voor</span>
-      <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">Na</span>
+      <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs text-white backdrop-blur">Voor</span>
+      <span className="absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs text-white backdrop-blur">Na</span>
     </div>
   );
 }

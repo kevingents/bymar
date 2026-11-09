@@ -7,6 +7,7 @@ import type { Build, BuildProgress, Project, ProjectImage } from "@/lib/types";
 import { euro } from "@/lib/stores";
 import { Icon } from "@/components/ui/Icon";
 import { BuildGuideView } from "@/components/builds/BuildGuideView";
+import { CabinetDiagram } from "@/components/visual/CabinetDiagram";
 
 const EXAMPLES = [
   "Wandkast met deuren, 200 hoog, 100 breed, 40 diep",
@@ -203,9 +204,10 @@ export function BuildsTab({ project }: { project: Project }) {
             <Icon name="loader" size={28} />
           </div>
         ) : builds.length === 0 ? (
-          <div className="card flex flex-col items-center px-6 py-16 text-center text-ink-2">
-            <Icon name="hammer" size={40} strokeWidth={1.2} className="text-ink-3" />
-            <p className="mt-3 max-w-sm">Nog geen bouwplannen. Beschrijf iets wat je wilt maken, van wandplank tot complete kast.</p>
+          <div className="card flex flex-col items-center px-6 py-10 text-center text-ink-2">
+            <CabinetDiagram className="h-56 w-auto" />
+            <p className="mt-2 font-display text-2xl text-ink">Wat ga jij bouwen?</p>
+            <p className="mt-1 max-w-sm">Beschrijf iets wat je wilt maken, van wandplank tot complete kast. Je krijgt elke plank en elke schroef uitgelegd.</p>
           </div>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
@@ -219,8 +221,8 @@ export function BuildsTab({ project }: { project: Project }) {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={urls[b.image_path]} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="grid h-full place-items-center text-ink-3">
-                          <Icon name="ruler" size={32} strokeWidth={1.2} />
+                        <div className="grid h-full place-items-center bg-surface-2">
+                          <CabinetDiagram className="h-full w-auto py-2" />
                         </div>
                       )}
                     </div>

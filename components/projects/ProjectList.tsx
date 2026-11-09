@@ -8,6 +8,8 @@ import { euro } from "@/lib/stores";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 import { useUser } from "@/components/auth/AuthGate";
+import { RoomScene } from "@/components/visual/RoomScene";
+import Image from "next/image";
 
 export function ProjectList() {
   const user = useUser();
@@ -38,14 +40,19 @@ export function ProjectList() {
         </div>
       </header>
 
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl tracking-tight sm:text-4xl">Je projecten</h1>
-          <p className="mt-1 text-ink-2">Elke kamer, elk meubel, elk idee: hier komt het samen.</p>
+      <div className="relative mt-4 overflow-hidden rounded-3xl text-white">
+        <Image src="/visuals/hero.webp" alt="" fill priority sizes="(min-width:1152px) 1152px, 100vw" className="object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/35 to-transparent" />
+        <div className="relative flex min-h-48 flex-wrap items-end justify-between gap-4 p-6 sm:min-h-56 sm:p-8">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/75">Welkom terug</p>
+            <h1 className="mt-2 font-display text-4xl tracking-tight sm:text-5xl">Je projecten</h1>
+            <p className="mt-1 text-white/85">Elke kamer, elk meubel, elk idee: hier komt het samen.</p>
+          </div>
+          <Link href="/projecten/nieuw" className="btn-primary px-5 py-3">
+            <Icon name="plus" size={18} /> Nieuw project
+          </Link>
         </div>
-        <Link href="/projecten/nieuw" className="btn-primary">
-          <Icon name="plus" size={18} /> Nieuw project
-        </Link>
       </div>
 
       {projects === null ? (
@@ -53,11 +60,10 @@ export function ProjectList() {
           <Icon name="loader" size={28} />
         </div>
       ) : projects.length === 0 ? (
-        <div className="card mt-10 flex flex-col items-center px-6 py-14 text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-accent-soft text-accent">
-            <Icon name="home" size={28} />
-          </span>
-          <h2 className="mt-4 font-display text-2xl">Begin met je eerste project</h2>
+        <div className="card mt-8 grid overflow-hidden md:grid-cols-2">
+          <RoomScene style="Japandi" className="aspect-[4/3] h-full w-full" />
+          <div className="flex flex-col items-start justify-center p-6 sm:p-8">
+          <h2 className="font-display text-3xl">Begin met je eerste project</h2>
           <p className="mt-2 max-w-sm text-ink-2">
             Bijvoorbeeld &ldquo;Slaapkamer opknappen&rdquo; of &ldquo;Eigen boekenkast bouwen&rdquo;. Je kunt daarna beelden maken,
             advies vragen en een plattegrond tekenen.
@@ -65,6 +71,7 @@ export function ProjectList() {
           <Link href="/projecten/nieuw" className="btn-primary mt-6">
             <Icon name="plus" size={18} /> Nieuw project
           </Link>
+          </div>
         </div>
       ) : (
         <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,9 +83,7 @@ export function ProjectList() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={covers[p.cover_path]} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
                   ) : (
-                    <div className="grid h-full place-items-center text-ink-3">
-                      <Icon name="image" size={36} strokeWidth={1.2} />
-                    </div>
+                    <RoomScene style={p.style} className="h-full w-full transition duration-500 group-hover:scale-[1.03]" />
                   )}
                   {p.share_enabled && (
                     <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-2.5 py-1 text-xs text-ink-2">

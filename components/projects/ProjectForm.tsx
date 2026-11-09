@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ROOM_TYPES, STYLES, type Project } from "@/lib/types";
 import { Icon } from "@/components/ui/Icon";
+import { RoomScene } from "@/components/visual/RoomScene";
+import { LOOKS } from "@/lib/styles";
 
 export type ProjectFields = Pick<Project, "title" | "room_type" | "style" | "budget" | "description">;
 
@@ -69,12 +71,34 @@ export function ProjectForm({
 
       <div>
         <span className="label">Stijl</span>
-        <div className="flex flex-wrap gap-2">
-          {STYLES.map((s) => (
-            <button type="button" key={s} className="chip" data-on={style === s} onClick={() => setStyle(style === s ? "" : s)}>
-              {s}
-            </button>
-          ))}
+        <div className="no-scrollbar -mx-1 flex snap-x gap-2.5 overflow-x-auto px-1 pb-2 sm:grid sm:grid-cols-4 sm:overflow-visible">
+          {STYLES.map((s) => {
+            const on = style === s;
+            return (
+              <button
+                type="button"
+                key={s}
+                onClick={() => setStyle(on ? "" : s)}
+                aria-pressed={on}
+                className={`group w-36 shrink-0 snap-start overflow-hidden rounded-2xl border text-left transition sm:w-auto ${
+                  on ? "border-accent ring-2 ring-accent/30" : "border-line hover:border-ink-3"
+                }`}
+              >
+                <span className="relative block aspect-[4/3] overflow-hidden">
+                  <RoomScene style={s} className="h-full w-full transition duration-500 group-hover:scale-105" />
+                  {on && (
+                    <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-accent text-accent-ink">
+                      <Icon name="check" size={14} strokeWidth={2.4} />
+                    </span>
+                  )}
+                </span>
+                <span className="block px-2.5 py-2">
+                  <span className="block text-sm font-medium">{s}</span>
+                  <span className="block truncate text-xs text-ink-3">{LOOKS[s]?.tagline}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
         <input
           className="input mt-2"

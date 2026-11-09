@@ -6,8 +6,8 @@ import { generateText } from "ai";
  * of automatisch via OIDC als de app op Vercel draait).
  * Modellen zijn te overschrijven met een env-var, zonder codewijziging.
  */
-export const TEXT_MODEL = process.env.HUISRAAD_TEXT_MODEL ?? "anthropic/claude-opus-5-5";
-export const IMAGE_MODEL = process.env.HUISRAAD_IMAGE_MODEL ?? "google/gemini-3.1-flash-image-preview";
+export const TEXT_MODEL = process.env.HUISRAAD_TEXT_MODEL ?? "anthropic/claude-opus-5.5";
+export const IMAGE_MODEL = process.env.HUISRAAD_IMAGE_MODEL ?? "google/gemini-3.1-flash-image";
 
 export const BASE_SYSTEM = `Je bent de interieurstylist en klusexpert van Huisraad, een app voor mensen die hun huis willen inrichten en dingen zelf willen maken.
 Je praat Nederlands, warm en concreet, zoals een goede vriendin die interieurontwerper én timmervrouw is.
@@ -48,7 +48,7 @@ export async function createImage(opts: { prompt: string; source?: { data: Uint8
         role: "user",
         content: opts.source
           ? [
-              { type: "image", image: opts.source.data, mediaType: opts.source.mediaType },
+              { type: "file", data: opts.source.data, mediaType: opts.source.mediaType },
               { type: "text", text: instruction },
             ]
           : [{ type: "text", text: instruction }],

@@ -51,9 +51,15 @@ function WallPiece({ s, height, color }: { s: WallSegment; height: number; color
             <meshStandardMaterial color={color} roughness={0.9} />
           </mesh>
         ))}
-      {s.kind === "window" && (
-        <mesh position={pos(M(WINDOW_SILL + WINDOW_HEIGHT / 2))}>
-          <boxGeometry args={s.horizontal ? [len, M(WINDOW_HEIGHT), 0.02] : [0.02, M(WINDOW_HEIGHT), len]} />
+      {s.kind === "window" && H > M(WINDOW_SILL) && (
+        <mesh position={pos((M(WINDOW_SILL) + Math.min(H, M(WINDOW_SILL + WINDOW_HEIGHT))) / 2)}>
+          <boxGeometry
+            args={
+              s.horizontal
+                ? [len, Math.min(H, M(WINDOW_SILL + WINDOW_HEIGHT)) - M(WINDOW_SILL), 0.02]
+                : [0.02, Math.min(H, M(WINDOW_SILL + WINDOW_HEIGHT)) - M(WINDOW_SILL), len]
+            }
+          />
           <meshPhysicalMaterial color="#cfe3ee" transparent opacity={0.25} roughness={0.05} />
         </mesh>
       )}
@@ -284,7 +290,7 @@ function WalkControls({ start, walls, keys }: { start: [number, number]; walls: 
 
 /* ------------------------------------------------------------------- Scène */
 
-function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk"; keys: React.RefObject<Keys> }) {
+function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk" | "showcase"; keys: React.RefObject<Keys> }) {
   const walls = useMemo(() => wallSegments(plan), [plan]);
   const b = bounds(plan);
   const center: [number, number, number] = [M((b.minX + b.maxX) / 2), 0, M((b.minY + b.maxY) / 2)];
@@ -297,7 +303,7 @@ function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk"; 
 
   return (
     <>
-      <color attach="background" args={[mode === "walk" ? "#e9e4dc" : "#efeae2"]} />
+      {mode !== "showcase" && <color attach="background" args={[mode === "walk" ? "#e9e4dc" : "#efeae2"]} />}
       <hemisphereLight args={["#fff8ee", "#b9ab98", 0.9]} />
       <ambientLight intensity={0.25} />
       <directionalLight
@@ -311,11 +317,13 @@ function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk"; 
         shadow-camera-bottom={-span}
       />
 
-      {/* buitenvloer */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center[0], -0.01, center[2]]} receiveShadow>
-        <planeGeometry args={[span * 4, span * 4]} />
-        <meshStandardMaterial color="#e2dbd0" roughness={1} />
-      </mesh>
+      {/* buitenvloer (niet in de showroom: daar zweeft het huis op de pagina) */}
+      {mode !== "showcase" && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[center[0], -0.01, center[2]]} receiveShadow>
+          <planeGeometry args={[span * 4, span * 4]} />
+          <meshStandardMaterial color="#e2dbd0" roughness={1} />
+        </mesh>
+      )}
 
       {plan.rooms.map((r) => (
         <group key={r.id}>
@@ -334,13 +342,16 @@ function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk"; 
       ))}
 
       {walls.map((s, i) => (
-        <WallPiece key={i} s={s} height={plan.wallHeight} color={plan.wallColor} />
+        // In de showroom zijn de muren laag (poppenhuis), zodat je de inrichting goed ziet.
+        <WallPiece key={i} s={s} height={mode === "showcase" ? Math.min(plan.wallHeight, 125) : plan.wallHeight} color={plan.wallColor} />
       ))}
       {plan.items.map((it) => (
         <Furniture key={it.id} it={it} />
       ))}
 
-      {mode === "orbit" ? (
+      {mode === "showcase" ? (
+        <OrbitControls target={center} autoRotate autoRotateSpeed={0.8} enableZoom={false} enablePan={false} minPolarAngle={0.5} maxPolarAngle={1.05} enableDamping />
+      ) : mode === "orbit" ? (
         <OrbitControls target={center} maxPolarAngle={Math.PI / 2.1} minDistance={1.5} maxDistance={span * 4} enableDamping />
       ) : (
         <WalkControls start={start} walls={walls} keys={keys} />
@@ -443,6 +454,23 @@ export default function Walkthrough3D({ plan }: { plan: Floorplan }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** Vanzelf ronddraaiend 3D-huis voor de startpagina; slepen om zelf te draaien. */
+export function Showroom({ plan, className }: { plan: Floorplan; className?: string }) {
+  const keys = useRef<Keys>({ f: false, b: false, l: false, r: false });
+  const start = useMemo<[number, number, number]>(() => {
+    const b = bounds(plan);
+    const span = Math.max(M(b.maxX - b.minX), M(b.maxY - b.minY), 3);
+    return [M((b.minX + b.maxX) / 2) + span * 0.5, span * 1.3, M((b.minY + b.maxY) / 2) + span * 0.85];
+  }, [plan]);
+  return (
+    <div className={className}>
+      <Canvas shadows dpr={[1, 2]} gl={{ alpha: true }} camera={{ fov: 38, near: 0.05, far: 200, position: start }}>
+        <Scene plan={plan} mode="showcase" keys={keys} />
+      </Canvas>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import type { Project, ProjectImage } from "@/lib/types";
 import { Icon } from "@/components/ui/Icon";
 import { useUser } from "@/components/auth/AuthGate";
 import { BeforeAfter } from "@/components/ui/BeforeAfter";
+import { RoomScene } from "@/components/visual/RoomScene";
 
 const IDEAS = [
   "Lichte woonkamer met linnen bank, eiken vloer en veel planten",
@@ -234,9 +235,14 @@ export function ImagesTab({ project, onCover }: { project: Project; onCover: (pa
           <div className="mb-4 aspect-[4/3] w-full animate-pulse rounded-2xl bg-surface-2 sm:max-w-md" aria-label="Beeld wordt gemaakt" />
         )}
         {images.length === 0 && !busy ? (
-          <div className="card flex flex-col items-center px-6 py-16 text-center text-ink-2">
-            <Icon name="image" size={40} strokeWidth={1.2} className="text-ink-3" />
-            <p className="mt-3 max-w-sm">Nog geen beelden. Beschrijf je droomkamer of upload een foto van je ruimte om te beginnen.</p>
+          <div className="card relative overflow-hidden">
+            <RoomScene style={project.style} className="aspect-[4/3] w-full sm:aspect-[16/9]" />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-5 pt-16 text-white">
+              <p className="font-display text-2xl">Zo zou je {project.style ? project.style.toLowerCase() + "e " : ""}kamer kunnen worden</p>
+              <p className="mt-1 max-w-md text-sm text-white/85">
+                Dit is een schets. Beschrijf je droomkamer of maak een foto van je ruimte, en Huisraad maakt er een echt beeld van.
+              </p>
+            </div>
           </div>
         ) : (
           <ul className="columns-2 gap-3 sm:columns-3">

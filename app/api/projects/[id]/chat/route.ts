@@ -41,7 +41,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       messages.push({
         role: "user",
         content: [
-          { type: "image", image: new Uint8Array(await blob.arrayBuffer()), mediaType: blob.type || "image/jpeg" },
+          { type: "file", data: new Uint8Array(await blob.arrayBuffer()), mediaType: blob.type || "image/jpeg" },
           { type: "text", text },
         ],
       });

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { BUCKET, supabase } from "@/lib/supabase/client";
+import { BUCKET, signedUrls, supabase } from "@/lib/supabase/client";
+import { RoomScene } from "@/components/visual/RoomScene";
 import type { Project } from "@/lib/types";
 import { euro } from "@/lib/stores";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -34,6 +35,13 @@ export function Workspace() {
     return TABS.some((t) => t.key === fromHash) ? fromHash : "beelden";
   });
   const [editing, setEditing] = useState(false);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const coverPath = project?.cover_path ?? null;
+
+  useEffect(() => {
+    if (!coverPath) return;
+    signedUrls([coverPath]).then((m) => setCoverUrl(m[coverPath] ?? null));
+  }, [coverPath]);
 
   useEffect(() => {
     supabase()
@@ -81,6 +89,14 @@ export function Workspace() {
           <Link href="/projecten" className="btn-ghost px-2.5" aria-label="Terug naar projecten">
             <Icon name="arrow-left" size={20} />
           </Link>
+          <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl ring-1 ring-line">
+            {coverPath && coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <RoomScene style={project.style} className="h-full w-full" />
+            )}
+          </span>
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-display text-lg font-semibold leading-tight sm:text-xl">{project.title}</h1>
             <p className="truncate text-xs text-ink-3">
