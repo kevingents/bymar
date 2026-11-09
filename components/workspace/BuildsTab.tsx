@@ -130,12 +130,27 @@ export function BuildsTab({
 
   const [diagramBusy, setDiagramBusy] = useState(false);
   const [detailsBusy, setDetailsBusy] = useState(false);
+  const [drillBusy, setDrillBusy] = useState(false);
+  async function addDrill(b: Build) {
+    setDrillBusy(true);
+    setError(null);
+    try {
+      const { build } = await postJson<{ build: Build }>(`/api/projects/${project.id}/builds`, { drillFor: b.id });
+      setBuilds((l) => l?.map((x) => (x.id === b.id ? { ...x, data: build.data } : x)) ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Het boorplan kon niet worden gemaakt.");
+    } finally {
+      setDrillBusy(false);
+    }
+  }
   async function addDetails(b: Build) {
     setDetailsBusy(true);
     setError(null);
     try {
       const { build } = await postJson<{ build: Build }>(`/api/projects/${project.id}/builds`, { detailsFor: b.id });
       setBuilds((l) => l?.map((x) => (x.id === b.id ? { ...x, data: build.data } : x)) ?? null);
+      // met constructie en schroeven erbij kan het boorplan nauwkeuriger
+      if (!build.data.drillPlan) addDrill(build);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Aanvullen lukte niet.");
     } finally {
@@ -275,6 +290,11 @@ export function BuildsTab({
           onProgress={(p) => saveProgress(current, p)}
           imageUrl={current.image_path ? urls[current.image_path] : null}
           diagramUrl={current.diagram_path ? urls[current.diagram_path] : null}
+          drillAction={
+            <button className="btn-primary" onClick={() => addDrill(current)} disabled={drillBusy}>
+              <Icon name={drillBusy ? "loader" : "ruler"} size={18} /> {drillBusy ? "Boorplan maken… (±1 min)" : "Maak boorplan"}
+            </button>
+          }
           diagramAction={
             <button className="btn-outline" onClick={() => makeDiagram(current)} disabled={diagramBusy}>
               <Icon name={diagramBusy ? "loader" : "cube"} size={18} /> {diagramBusy ? "Tekening maken…" : "Maak bouwtekening"}

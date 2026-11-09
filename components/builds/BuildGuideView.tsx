@@ -5,6 +5,8 @@ import type { BuildProgress } from "@/lib/types";
 import { euro, storeLink } from "@/lib/stores";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { CutPlan } from "./CutPlan";
+import { DimensionDrawing } from "./DimensionDrawing";
+import { DrillPlanView } from "./DrillPlanView";
 import { buildIcs, downloadIcs } from "@/lib/ics";
 
 const DIFF_COLOR: Record<BuildGuide["difficulty"], string> = {
@@ -54,6 +56,7 @@ export function BuildGuideView({
   imageAction,
   diagramUrl,
   diagramAction,
+  drillAction,
 }: {
   guide: BuildGuide;
   progress: BuildProgress;
@@ -62,6 +65,7 @@ export function BuildGuideView({
   imageAction?: React.ReactNode;
   diagramUrl?: string | null;
   diagramAction?: React.ReactNode;
+  drillAction?: React.ReactNode;
 }) {
   const steps = progress.steps ?? {};
   const dates = progress.dates ?? {};
@@ -230,6 +234,10 @@ Let op: ${s.warning}` : ""}`,
         </ul>
       </Section>
 
+      <Section icon="ruler" title="Maattekening">
+        <DimensionDrawing guide={guide} />
+      </Section>
+
       {guide.cuttingList.length > 0 && (
         <Section icon="saw" title="Zaaglijst" aside={<span className="text-xs text-ink-3">maten in cm</span>}>
           <p className="mb-3 text-sm text-ink-2">
@@ -303,6 +311,21 @@ Let op: ${s.warning}` : ""}`,
               </ul>
             </>
           )}
+        </Section>
+      ) : null}
+
+      {guide.drillPlan ? (
+        <Section icon="ruler" title="Waar komen de gaten?">
+          <DrillPlanView plan={guide.drillPlan} />
+        </Section>
+      ) : drillAction ? (
+        <Section icon="ruler" title="Waar komen de gaten?">
+          <div className="flex flex-wrap items-center gap-3 print:hidden">
+            <p className="min-w-0 flex-1 text-sm text-ink-2">
+              Per onderdeel een tekening met elk schroef-, deuvel- en scharniergat, en de afstand tot de randen in millimeters.
+            </p>
+            {drillAction}
+          </div>
         </Section>
       ) : null}
 

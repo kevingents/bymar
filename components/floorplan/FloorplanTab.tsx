@@ -10,6 +10,7 @@ import { FLOORS, FURNITURE, bounds, emptyFloorplan, floorplanFromDetected, footp
 import { FURNITURE_TYPES, type FloorItem, type Floorplan, type FloorplanFromImage, type FurnitureType, type LayoutSuggestion, type Wall } from "@/lib/schemas";
 import type { Project } from "@/lib/types";
 import { Icon } from "@/components/ui/Icon";
+import { CameraTool } from "@/components/tools/CameraTool";
 import { FloorplanEditor, WALLS, type Selection } from "./FloorplanEditor";
 
 const Walkthrough3D = dynamic(() => import("./Walkthrough3D"), {
@@ -116,6 +117,7 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
     setScan(null);
   }
   const [canUndo, setCanUndo] = useState(false);
+  const [measureFor, setMeasureFor] = useState<null | "w" | "h">(null);
 
   // Automatisch opslaan, kort na de laatste wijziging.
   function change(next: Floorplan, record = true) {
@@ -356,6 +358,12 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
                 <div className="grid grid-cols-2 gap-2">
                   <Num label="Breedte (cm)" value={room.w} min={100} onChange={(w) => patchRoom({ w })} />
                   <Num label="Diepte (cm)" value={room.h} min={100} onChange={(h) => patchRoom({ h })} />
+                  <button className="btn-ghost px-2 py-1.5 text-xs" onClick={() => setMeasureFor("w")}>
+                    <Icon name="camera" size={14} /> Meet breedte
+                  </button>
+                  <button className="btn-ghost px-2 py-1.5 text-xs" onClick={() => setMeasureFor("h")}>
+                    <Icon name="camera" size={14} /> Meet diepte
+                  </button>
                 </div>
                 <div>
                   <span className="label">Vloer</span>
@@ -439,6 +447,18 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
           </div>
           <p className="pt-2 text-center text-sm text-white/70">Sleep de lijn. De foto staat ook bij Beelden.</p>
         </div>
+      )}
+
+      {measureFor && (
+        <CameraTool
+          mode="measure"
+          onClose={() => setMeasureFor(null)}
+          onMeasured={(cm) => {
+            if (measureFor === "w") patchRoom({ w: Math.round(cm) });
+            else patchRoom({ h: Math.round(cm) });
+            setMeasureFor(null);
+          }}
+        />
       )}
 
       {scan?.plan && (

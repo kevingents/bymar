@@ -140,7 +140,7 @@ export const BuildDetailsSchema = z.object({
 });
 
 /** Oudere bouwplannen hebben deel 2 (en maten/type) nog niet. */
-export type BuildGuide = z.infer<typeof BuildCoreSchema> & Partial<z.infer<typeof BuildDetailsSchema>>;
+export type BuildGuide = z.infer<typeof BuildCoreSchema> & Partial<z.infer<typeof BuildDetailsSchema>> & { drillPlan?: DrillPlan };
 export type BuildDetails = z.infer<typeof BuildDetailsSchema>;
 
 /* ------------------------------------------------------------ Inkooplijst */
@@ -276,3 +276,32 @@ export const PaletteSchema = z.object({
   advice: z.string().describe("2-3 zinnen hoe je dit palet in de ruimte verdeelt"),
 });
 export type Palette = z.infer<typeof PaletteSchema>;
+
+/* ---------------------------------------------------------------- Boorplan */
+
+export const HOLE_TYPES = ["schroef", "deuvel", "scharnier", "plankdrager", "ophang", "greep", "voorboren"] as const;
+
+/** Waar elk gat komt, per onderdeel. Maten in mm vanaf de referentiehoek. */
+export const DrillPlanSchema = z.object({
+  reference: z.string().describe("Hoe je meet: welke hoek is 0,0 en aan welke kant van de plaat je tekent"),
+  parts: z.array(
+    z.object({
+      part: z.string().describe("Naam precies zoals in de zaaglijst"),
+      length: z.number().describe("Lengte in mm (zoals zaaglijst)"),
+      width: z.number().describe("Breedte in mm (zoals zaaglijst)"),
+      face: z.string().describe("Op welke kant je tekent, bv. 'binnenkant' of 'onderkant'"),
+      holes: z.array(
+        z.object({
+          x: z.number().describe("Afstand in mm langs de lengte, vanaf het uiteinde dat bij de referentie hoort (bij staande delen: vanaf de onderkant)"),
+          y: z.number().describe("Afstand in mm langs de breedte, vanaf de voorkant"),
+          type: z.enum(HOLE_TYPES),
+          diameter: z.number().describe("Boordiameter in mm"),
+          depth: z.number().describe("Boordiepte in mm; 0 = door en door"),
+        }),
+      ),
+      note: z.string().describe("Korte uitleg voor dit onderdeel, bv. 'de bodem komt hier op 80 mm, schroeven 9 mm boven die lijn'"),
+    }),
+  ),
+  tips: z.array(z.string()).describe("Praktische tips: aftekenen met winkelhaak, voorboren, verzinkboor, mal maken voor herhalende gaten"),
+});
+export type DrillPlan = z.infer<typeof DrillPlanSchema>;

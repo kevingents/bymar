@@ -1,6 +1,6 @@
 import { generateText, Output } from "ai";
 import { BASE_SYSTEM, TEXT_MODEL, projectContext } from "@/lib/ai";
-import { BuildCoreSchema, BuildDetailsSchema, type BuildGuide } from "@/lib/schemas";
+import { BuildCoreSchema, BuildDetailsSchema, DrillPlanSchema, type BuildGuide } from "@/lib/schemas";
 import { requireProject } from "@/lib/supabase/server";
 import { guardAi } from "@/lib/usage";
 
@@ -44,13 +44,59 @@ async function details(core: BuildGuide) {
   return output;
 }
 
+const DRILL_SYSTEM = `${BASE_SYSTEM}
+
+Je maakt een boorplan: per onderdeel uit de zaaglijst precies waar elk gat komt, zodat iemand die het lastig vindt het met een rolmaat en winkelhaak kan aftekenen.
+- Gebruik exact de onderdelen en maten uit de zaaglijst; elk onderdeel dat gaten krijgt komt één keer voor (bij meerdere gelijke delen geldt hetzelfde boorplan).
+- Coördinaten in mm. x = afstand langs de lengte vanaf het referentie-uiteinde (staande delen: vanaf de onderkant), y = afstand langs de breedte vanaf de voorkant. Teken op de kant die je noemt.
+- Schroef door een plaat in de kopse kant van een andere: het gat zit op halve plaatdikte van de verbindingslijn (bij 18 mm: 9 mm), 40-50 mm uit de voor- en achterrand, en tussenin om de 200-250 mm.
+- Voorboorgat 3 mm voor een schroef van 4 mm (in de kopse kant), met verzinkboor in de plaat waar de kop in komt.
+- Deuvels: diameter 8, diepte half de deuvellengte + 1 mm, op dezelfde lijnen als de schroeven maar ertussen.
+- Potscharnieren: 35 mm cup-boring, 12-13 mm diep, hart 22,5 mm uit de deurrand, 80-100 mm van boven en onder.
+- Plankdragers: 5 mm, 10 mm diep, rij op 37 mm uit voor- en achterrand, om de 32 mm.
+- Ophangbeslag en grepen alleen waar het plan ze noemt.
+- Houd het overzichtelijk: liever de echte gaten dan alle denkbare.`;
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const ctx = await requireProject(id);
   if ("error" in ctx) return ctx.error;
   const { sb, project } = ctx;
 
-  const body = (await req.json()) as { request?: string; detailsFor?: string };
+  const body = (await req.json()) as { request?: string; detailsFor?: string; drillFor?: string };
+
+  // Boorplan: waar komt elk gat, per onderdeel.
+  if (body.drillFor) {
+    const { data: existing } = await sb.from("builds").select("*").eq("id", body.drillFor).eq("project_id", project.id).maybeSingle();
+    if (!existing) return Response.json({ error: "Bouwplan niet gevonden." }, { status: 404 });
+    const limited = await guardAi(sb, "text");
+    if (limited) return limited;
+    try {
+      const g = existing.data as BuildGuide;
+      const { output: drillPlan } = await generateText({
+        model: TEXT_MODEL,
+        system: DRILL_SYSTEM,
+        reasoning: "medium",
+        maxOutputTokens: 16000,
+        output: Output.object({ schema: DrillPlanSchema }),
+        prompt: JSON.stringify({
+          titel: g.title,
+          maten: g.dimensions,
+          zaaglijst: g.cuttingList,
+          constructie: g.construction ?? g.design,
+          bevestiging: g.fasteners?.map((f) => `${f.quantity}x ${f.name}: ${f.where}`),
+          stappen: g.steps.map((s) => `${s.title}: ${s.description}`),
+        }),
+      });
+      const data = { ...g, drillPlan };
+      const { data: build, error } = await sb.from("builds").update({ data }).eq("id", existing.id).select("*").single();
+      if (error) throw error;
+      return Response.json({ build });
+    } catch (e) {
+      console.error("boorplan mislukt", e);
+      return Response.json({ error: "Het boorplan kon niet worden gemaakt. Probeer het opnieuw." }, { status: 502 });
+    }
+  }
 
   // Alleen techniek aanvullen bij een bestaand (ouder) plan.
   if (body.detailsFor) {

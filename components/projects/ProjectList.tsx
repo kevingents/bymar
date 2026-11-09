@@ -34,6 +34,9 @@ export function ProjectList() {
         <Logo />
         <div className="flex items-center gap-1">
           <span className="hidden text-sm text-ink-3 sm:inline">{user.email}</span>
+          <Link href="/gereedschap" className="btn-ghost" aria-label="Gereedschap: waterpas en meten">
+            <Icon name="ruler" size={18} />
+          </Link>
           <Link href="/instellingen" className="btn-ghost" aria-label="Instellingen">
             <Icon name="sliders" size={18} />
           </Link>

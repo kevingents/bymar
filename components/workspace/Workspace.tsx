@@ -125,6 +125,9 @@ export function Workspace() {
                 .join(" · ") || "Voeg ruimte, stijl en budget toe voor beter advies"}
             </p>
           </div>
+          <Link href="/gereedschap" className="btn-ghost px-2.5" aria-label="Gereedschap: waterpas en meten">
+            <Icon name="ruler" size={18} />
+          </Link>
           <button className="btn-ghost px-2.5" onClick={() => setEditing(true)} aria-label="Project bewerken">
             <Icon name="edit" size={18} />
           </button>
