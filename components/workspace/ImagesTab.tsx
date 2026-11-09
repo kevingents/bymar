@@ -27,6 +27,7 @@ const KIND_LABEL: Record<ProjectImage["kind"], string> = {
   build: "Bouwresultaat",
   render: "Uit 3D",
   moodboard: "Moodboard",
+  diagram: "Bouwtekening",
 };
 
 export function ImagesTab({

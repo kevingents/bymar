@@ -39,7 +39,8 @@ export type FurnitureType = z.infer<typeof FurnitureType>;
 
 /* ---------------------------------------------------------------- Bouwplan */
 
-export const BuildGuideSchema = z.object({
+/** Deel 1 van het bouwplan: ontwerp, materialen, zaaglijst, stappen. */
+export const BuildCoreSchema = z.object({
   title: z.string().describe("Korte naam van het object, bv. 'Eikenhouten wandkast'"),
   summary: z.string().describe("2-3 zinnen: wat je maakt en hoe het eruitziet"),
   difficulty: z.enum(["makkelijk", "gemiddeld", "lastig"]),
@@ -98,7 +99,49 @@ export const BuildGuideSchema = z.object({
   finishing: z.array(z.string()).describe("Afwerking: schuren, lakken, olie, monteren aan de muur"),
   safety: z.array(z.string()),
 });
-export type BuildGuide = z.infer<typeof BuildGuideSchema>;
+/** Deel 2: materiaalkeuze, constructie en bevestiging (aparte aanroep; één schema samen is te groot). */
+export const BuildDetailsSchema = z.object({
+  materialChoice: z
+    .array(
+      z.object({
+        option: z.string().describe("Materiaal, bv. 'Berken multiplex 18 mm'"),
+        recommended: z.boolean().describe("true voor de beste keuze (precies één)"),
+        why: z.string().describe("Waarom wel of niet: sterkte, uitzetten, afwerking, gewicht, gebruiksgemak"),
+        pros: z.array(z.string()),
+        cons: z.array(z.string()),
+        priceLevel: z.enum(["€", "€€", "€€€"]),
+      }),
+    )
+    .describe("De beste materiaalkeuze plus 2-3 alternatieven"),
+  construction: z.object({
+    frame: z
+      .string()
+      .describe("Hoe het frame/casco is opgebouwd: welke delen dragen, waar zitten bodem, top, achterwand, regels; waarom zo stevig"),
+    joints: z.array(
+      z.object({
+        name: z.string().describe("bv. 'Deuvelverbinding', 'Pocket-hole schroef', 'Lamello', 'Hoekverbinding met lijm en schroef'"),
+        where: z.string().describe("Welke onderdelen het verbindt"),
+        how: z.string().describe("Stap voor stap hoe je de verbinding maakt, met maten (bv. gaten op 37 mm, 8 mm diep)"),
+        why: z.string().describe("Waarom deze verbinding hier, en een eenvoudiger alternatief"),
+      }),
+    ),
+  }),
+  fasteners: z
+    .array(
+      z.object({
+        name: z.string().describe("Exacte aanduiding, bv. 'Spaanplaatschroef 4,0 × 40 mm, verzonken kop, torx 20, deeldraad'"),
+        quantity: z.number(),
+        where: z.string().describe("Waar ze in komen"),
+        why: z.string().describe("Waarom dit type en deze lengte (vuistregel: 2,5× de plaatdikte, niet doorschieten)"),
+        alternative: z.string().describe("Alternatief, of leeg"),
+      }),
+    )
+    .describe("Schroeven, pluggen, deuvels, lijm, scharnieren, ophangbeslag"),
+});
+
+/** Oudere bouwplannen hebben deel 2 (en maten/type) nog niet. */
+export type BuildGuide = z.infer<typeof BuildCoreSchema> & Partial<z.infer<typeof BuildDetailsSchema>>;
+export type BuildDetails = z.infer<typeof BuildDetailsSchema>;
 
 /* ------------------------------------------------------------ Inkooplijst */
 

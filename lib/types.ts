@@ -21,7 +21,7 @@ export type Project = {
   updated_at: string;
 };
 
-export type ImageKind = "generated" | "restyle" | "upload" | "progress" | "build" | "render" | "moodboard";
+export type ImageKind = "generated" | "restyle" | "upload" | "progress" | "build" | "render" | "moodboard" | "diagram";
 
 export type ProjectImage = {
   id: string;
@@ -53,6 +53,7 @@ export type Build = {
   data: BuildGuide;
   progress: BuildProgress;
   image_path: string | null;
+  diagram_path?: string | null;
   created_at: string;
 };
 

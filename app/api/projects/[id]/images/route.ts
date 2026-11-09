@@ -7,7 +7,7 @@ export const maxDuration = 120;
 type Body = {
   prompt?: string;
   sourcePath?: string | null;
-  kind?: "generated" | "restyle" | "build" | "render";
+  kind?: "generated" | "restyle" | "build" | "render" | "diagram";
   buildId?: string;
 };
 
@@ -35,7 +35,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const limited = await guardAi(sb, "image");
   if (limited) return limited;
 
-  const styleHint = [project.style && `stijl ${project.style}`, project.room_type && `ruimte: ${project.room_type}`]
+  const styleHint = body.kind === "diagram" ? "" : [project.style && `stijl ${project.style}`, project.room_type && `ruimte: ${project.room_type}`]
     .filter(Boolean)
     .join(", ");
 
@@ -43,7 +43,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const image = await createImage({
       prompt: styleHint ? `${prompt} (${styleHint})` : prompt,
       source,
-      mode: body.kind === "render" ? "render" : body.kind === "build" && source ? "place" : undefined,
+      mode: body.kind === "render" ? "render" : body.kind === "diagram" ? "diagram" : body.kind === "build" && source ? "place" : undefined,
     });
     const ext = image.mediaType.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
     const path = `${user.id}/${project.id}/${crypto.randomUUID()}.${ext}`;
@@ -61,7 +61,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (kind === "build" && body.buildId) {
       await sb.from("builds").update({ image_path: path }).eq("id", body.buildId);
     }
-    if (!project.cover_path) {
+    if (kind === "diagram" && body.buildId) {
+      await sb.from("builds").update({ diagram_path: path }).eq("id", body.buildId);
+    }
+    if (!project.cover_path && kind !== "diagram") {
       await sb.from("projects").update({ cover_path: path }).eq("id", project.id);
     }
     return Response.json({ image: row });

@@ -52,12 +52,16 @@ export function BuildGuideView({
   onProgress,
   imageUrl,
   imageAction,
+  diagramUrl,
+  diagramAction,
 }: {
   guide: BuildGuide;
   progress: BuildProgress;
   onProgress?: (p: BuildProgress) => void;
   imageUrl?: string | null;
   imageAction?: React.ReactNode;
+  diagramUrl?: string | null;
+  diagramAction?: React.ReactNode;
 }) {
   const steps = progress.steps ?? {};
   const dates = progress.dates ?? {};
@@ -148,6 +152,50 @@ Let op: ${s.warning}` : ""}`,
         )}
       </Section>
 
+      {guide.materialChoice?.length ? (
+        <Section icon="layers" title="Welk materiaal en waarom">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[...guide.materialChoice]
+              .sort((a, b) => Number(b.recommended) - Number(a.recommended))
+              .map((m, i) => (
+                <article
+                  key={i}
+                  className={`rounded-2xl border p-4 ${m.recommended ? "border-accent bg-accent-soft/60 sm:col-span-2" : "border-line"}`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-medium">{m.option}</h4>
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-ink-2">{m.priceLevel}</span>
+                    {m.recommended && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs text-accent-ink">
+                        <Icon name="check" size={12} strokeWidth={2.4} /> Beste keuze
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-sm text-ink-2">{m.why}</p>
+                  <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                    <ul className="space-y-1">
+                      {m.pros.map((p, j) => (
+                        <li key={j} className="flex gap-1.5">
+                          <Icon name="plus" size={14} className="mt-0.5 shrink-0 text-olive" />
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                    <ul className="space-y-1">
+                      {m.cons.map((p, j) => (
+                        <li key={j} className="flex gap-1.5 text-ink-2">
+                          <Icon name="minus" size={14} className="mt-0.5 shrink-0 text-danger" />
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </article>
+              ))}
+          </div>
+        </Section>
+      ) : null}
+
       <Section
         icon="cart"
         title="Materialen"
@@ -221,6 +269,77 @@ Let op: ${s.warning}` : ""}`,
           <CutPlan guide={guide} />
         </Section>
       )}
+
+      {guide.construction ? (
+        <Section icon="cube" title="Zo bouw je het frame">
+          <div className={diagramUrl || diagramAction ? "grid gap-4 md:grid-cols-[1fr_300px]" : ""}>
+            <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{guide.construction.frame}</p>
+            {(diagramUrl || diagramAction) && (
+              <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line print:break-inside-avoid">
+                {diagramUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={diagramUrl} alt={`Bouwtekening van ${guide.title}`} className="w-full" />
+                ) : (
+                  <div className="grid aspect-square place-items-center p-4 text-center print:hidden">{diagramAction}</div>
+                )}
+              </div>
+            )}
+          </div>
+          {guide.construction.joints.length > 0 && (
+            <>
+              <h4 className="mt-5 text-xs font-medium uppercase tracking-wider text-ink-3">Verbindingen</h4>
+              <ul className="mt-2 grid gap-3 sm:grid-cols-2">
+                {guide.construction.joints.map((j, i) => (
+                  <li key={i} className="rounded-2xl bg-surface-2 p-4">
+                    <p className="font-medium">{j.name}</p>
+                    <p className="text-xs text-ink-3">{j.where}</p>
+                    <p className="mt-2 text-sm leading-relaxed">{j.how}</p>
+                    <p className="mt-2 flex gap-1.5 text-sm text-ink-2">
+                      <Icon name="info" size={15} className="mt-0.5 shrink-0 text-olive" />
+                      {j.why}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </Section>
+      ) : null}
+
+      {guide.fasteners?.length ? (
+        <Section icon="hammer" title="Schroeven, lijm en beslag">
+          <ul className="divide-y divide-line">
+            {guide.fasteners.map((f, i) => (
+              <li key={i} className="grid gap-1 py-3 sm:grid-cols-[1fr_auto]">
+                <div>
+                  <p className="font-medium">
+                    {f.quantity > 0 && <span className="tabular-nums text-accent">{f.quantity}× </span>}
+                    {f.name}
+                  </p>
+                  <p className="text-sm text-ink-2">
+                    <span className="text-ink-3">Waar: </span>
+                    {f.where}
+                  </p>
+                  <p className="text-sm text-ink-2">
+                    <span className="text-ink-3">Waarom: </span>
+                    {f.why}
+                  </p>
+                  {f.alternative && (
+                    <p className="text-sm text-ink-3">
+                      <span>Alternatief: </span>
+                      {f.alternative}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 rounded-xl bg-surface-2 px-3 py-2 text-xs text-ink-2">
+            Vuistregel: een schroef is ongeveer 2,5× zo lang als de plaat die je vastzet, en komt er nooit aan de andere kant uit.
+            Boor in hardhout en dicht bij de rand altijd eerst voor.
+          </p>
+        </Section>
+      ) : null}
 
       <Section icon="hammer" title="Gereedschap">
         <ul className="grid gap-2 sm:grid-cols-2">

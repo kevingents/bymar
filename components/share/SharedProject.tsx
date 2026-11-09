@@ -31,7 +31,7 @@ type Shared = {
     palettes?: SavedPalette[];
   };
   images: SharedImage[];
-  builds: { id: string; title: string; data: BuildGuide; image_path: string | null }[];
+  builds: { id: string; title: string; data: BuildGuide; image_path: string | null; diagram_path?: string | null }[];
   moodboard?: MoodItem[];
   comments: Comment[];
   urls: Record<string, string>;
@@ -310,7 +310,12 @@ export function SharedProject() {
                 <button className="btn-ghost -ml-3 mb-3" onClick={() => setOpenBuild(null)}>
                   <Icon name="arrow-left" size={18} /> Alle bouwplannen
                 </button>
-                <BuildGuideView guide={build.data} progress={{}} imageUrl={build.image_path ? urls[build.image_path] : null} />
+                <BuildGuideView
+                  guide={build.data}
+                  progress={{}}
+                  imageUrl={build.image_path ? urls[build.image_path] : null}
+                  diagramUrl={build.diagram_path ? urls[build.diagram_path] : null}
+                />
               </>
             ) : (
               <ul className="grid gap-3 sm:grid-cols-2">

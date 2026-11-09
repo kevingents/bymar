@@ -73,9 +73,11 @@ export async function imageWithFallback(inputs: ImageInput[], text: string) {
 }
 
 /** Maakt of bewerkt een beeld. Met `source` wordt de bestaande foto omgevormd. */
-export async function createImage(opts: { prompt: string; source?: ImageInput; mode?: "render" | "place" }) {
+export async function createImage(opts: { prompt: string; source?: ImageInput; mode?: "render" | "place" | "diagram" }) {
   const instruction =
-    opts.mode === "place"
+    opts.mode === "diagram"
+      ? `Maak een technische bouwtekening als exploded view (uit elkaar getrokken) in isometrisch perspectief: nette zwarte lijntekening op een witte achtergrond, vlakken wit gevuld, lijndikte gelijkmatig, hulplijnen gestippeld en lichtgrijs. Laat zien hoe de onderdelen van het frame op hun plek komen, met stippellijnen naar waar ze aansluiten, en kleine details van deuvels en schroeven bij de verbindingen. Geen kleur, geen schaduw, geen tekst, geen cijfers, geen maten, geen watermerk. Het object: ${opts.prompt}`
+      : opts.mode === "place"
       ? `Dit is een foto van een bestaande kamer. Plaats er dit zelfgemaakte meubel in: ${opts.prompt}. Zet het op een logische plek (op de vloer of tegen een vrije muur), op realistische schaal volgens de genoemde maten, met kloppend perspectief, licht en schaduw. Verander verder niets aan de kamer: muren, ramen, vloer en andere meubels blijven precies zoals ze zijn. Fotorealistisch, geen tekst of watermerk.`
       : opts.mode === "render"
       ? `Dit is een eenvoudige 3D-schets van een ingerichte ruimte. Maak er een fotorealistische interieurfoto van vanuit precies hetzelfde standpunt: behoud de indeling, de positie en de maat van de meubels, de ramen en deuren en het perspectief. Geef materialen, licht en details een realistische, mooie uitwerking. Wens: ${opts.prompt}. Geen tekst of watermerk.`

@@ -58,7 +58,7 @@ export function BuildsTab({
       .then(async ({ data }) => {
         const list = (data ?? []) as Build[];
         setBuilds(list);
-        setUrls(await signedUrls(list.map((b) => b.image_path)));
+        setUrls(await signedUrls(list.flatMap((b) => [b.image_path, b.diagram_path ?? null])));
       });
   }, [project.id]);
 
@@ -78,7 +78,8 @@ export function BuildsTab({
       const { build } = await postJson<{ build: Build }>(`/api/projects/${project.id}/builds`, { request });
       setBuilds((l) => [build, ...(l ?? [])]);
       setActive(build.id);
-      // meteen laten zien hoe het eruit komt te zien
+      // daarna op de achtergrond: techniek (frame, materiaal, schroeven) en een beeld van het resultaat
+      addDetails(build);
       makeImage(build);
       setWish("");
       setSize("");
@@ -125,6 +126,40 @@ export function BuildsTab({
     await supabase().from("builds").delete().eq("id", b.id);
     setBuilds((l) => l?.filter((x) => x.id !== b.id) ?? null);
     setActive(null);
+  }
+
+  const [diagramBusy, setDiagramBusy] = useState(false);
+  const [detailsBusy, setDetailsBusy] = useState(false);
+  async function addDetails(b: Build) {
+    setDetailsBusy(true);
+    setError(null);
+    try {
+      const { build } = await postJson<{ build: Build }>(`/api/projects/${project.id}/builds`, { detailsFor: b.id });
+      setBuilds((l) => l?.map((x) => (x.id === b.id ? { ...x, data: build.data } : x)) ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Aanvullen lukte niet.");
+    } finally {
+      setDetailsBusy(false);
+    }
+  }
+  async function makeDiagram(b: Build) {
+    setDiagramBusy(true);
+    setError(null);
+    try {
+      const parts = b.data.cuttingList.map((c) => `${c.quantity}× ${c.part} (${c.length / 10} × ${c.width / 10} × ${c.thickness / 10} cm)`).join(", ");
+      const { image } = await postJson<{ image: ProjectImage }>(`/api/projects/${project.id}/images`, {
+        prompt: `${b.data.title}, buitenmaten ${b.data.dimensions}. Constructie: ${b.data.construction?.frame ?? b.data.design.description} Onderdelen: ${parts}.`,
+        kind: "diagram",
+        buildId: b.id,
+      });
+      const u = await signedUrls([image.path]);
+      setUrls((m) => ({ ...m, ...u }));
+      setBuilds((l) => l?.map((x) => (x.id === b.id ? { ...x, diagram_path: image.path } : x)) ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "De bouwtekening kon niet worden gemaakt.");
+    } finally {
+      setDiagramBusy(false);
+    }
   }
 
   async function inMyRoom(b: Build, file: File) {
@@ -183,6 +218,18 @@ export function BuildsTab({
         </div>
         {error && <p className="mb-3 text-sm text-danger">{error}</p>}
 
+        {!current.data.construction && (
+          <div className="card mb-4 flex flex-wrap items-center gap-3 border-accent/40 bg-accent-soft/50 p-4 print:hidden">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Hoe zit het in elkaar?</p>
+              <p className="text-sm text-ink-2">Voeg toe: hoe je het frame bouwt, welk materiaal het beste is en waarom, en welke schroeven je nodig hebt.</p>
+            </div>
+            <button className="btn-primary" onClick={() => addDetails(current)} disabled={detailsBusy}>
+              <Icon name={detailsBusy ? "loader" : "hammer"} size={18} /> {detailsBusy ? "Wordt uitgewerkt… (1-3 min)" : "Techniek toevoegen"}
+            </button>
+          </div>
+        )}
+
         <div className="card mb-4 flex flex-wrap items-center gap-2 p-3 print:hidden">
           <span className="mr-auto text-sm font-medium">Zie het voor je</span>
           <button className="btn-outline px-3 py-2" onClick={() => makeImage(current)} disabled={imgBusy}>
@@ -227,6 +274,12 @@ export function BuildsTab({
           progress={current.progress ?? {}}
           onProgress={(p) => saveProgress(current, p)}
           imageUrl={current.image_path ? urls[current.image_path] : null}
+          diagramUrl={current.diagram_path ? urls[current.diagram_path] : null}
+          diagramAction={
+            <button className="btn-outline" onClick={() => makeDiagram(current)} disabled={diagramBusy}>
+              <Icon name={diagramBusy ? "loader" : "cube"} size={18} /> {diagramBusy ? "Tekening maken…" : "Maak bouwtekening"}
+            </button>
+          }
           imageAction={
             <span className="flex flex-col items-center gap-2 text-sm text-ink-3">
               <Icon name={imgBusy ? "loader" : "image"} size={24} />
@@ -326,7 +379,7 @@ export function BuildsTab({
         </button>
         {busy && (
           <p className="mt-2 text-center text-xs text-ink-3">
-            Even geduld: materialen, zaaglijst en stappen worden doorgerekend. Dit duurt 1 tot 3 minuten; laat dit scherm open.
+            Even geduld: materialen, zaaglijst en stappen worden doorgerekend (2 tot 3 minuten). Daarna vult Huisraad de constructie, het beste materiaal en de schroeven aan.
           </p>
         )}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
