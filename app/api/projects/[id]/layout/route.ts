@@ -3,6 +3,7 @@ import { BASE_SYSTEM, TEXT_MODEL, projectContext } from "@/lib/ai";
 import { floorplanSummary } from "@/lib/floorplan";
 import { LayoutSuggestionSchema, type Floorplan } from "@/lib/schemas";
 import { requireProject } from "@/lib/supabase/server";
+import { guardAi } from "@/lib/usage";
 
 export const maxDuration = 120;
 
@@ -11,7 +12,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const ctx = await requireProject(id);
   if ("error" in ctx) return ctx.error;
-  const { project } = ctx;
+  const { sb, project } = ctx;
 
   const { floorplan, roomId, wish } = (await req.json()) as {
     floorplan: Floorplan;
@@ -20,6 +21,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   };
   const room = floorplan?.rooms?.find((r) => r.id === roomId);
   if (!room) return Response.json({ error: "Kies eerst een ruimte." }, { status: 400 });
+
+  const limited = await guardAi(sb, "text");
+  if (limited) return limited;
 
   try {
     const { output } = await generateText({

@@ -2,6 +2,7 @@ import { generateText, Output } from "ai";
 import { BASE_SYSTEM, TEXT_MODEL, projectContext } from "@/lib/ai";
 import { BuildGuideSchema } from "@/lib/schemas";
 import { requireProject } from "@/lib/supabase/server";
+import { guardAi } from "@/lib/usage";
 
 export const maxDuration = 300;
 
@@ -24,6 +25,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { request } = (await req.json()) as { request?: string };
   const wish = request?.trim();
   if (!wish) return Response.json({ error: "Wat wil je maken?" }, { status: 400 });
+
+  const limited = await guardAi(sb, "text");
+  if (limited) return limited;
 
   try {
     const { output } = await generateText({

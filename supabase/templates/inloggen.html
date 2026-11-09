@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light only" />
+    <title>Je inlogcode voor Huisraad</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f6f2ec;-webkit-text-size-adjust:100%;">
+    <div style="display:none;max-height:0;overflow:hidden;">Je code is {{ .Token }}. Geldig voor een uur.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f2ec;">
+      <tr>
+        <td align="center" style="padding:28px 12px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+            <!-- logo -->
+            <tr>
+              <td style="padding:0 4px 18px 4px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td><img src="https://www.huisraad.app/mail/logo.png" width="32" height="32" alt="" style="display:block;border:0;border-radius:9px;" /></td>
+                    <td style="padding-left:10px;font-family:Georgia,'Times New Roman',serif;font-size:21px;font-weight:bold;color:#2a2520;">Huisraad</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- kaart -->
+            <tr>
+              <td style="background:#fffdf9;border:1px solid #e2d9cc;border-radius:20px;overflow:hidden;">
+                <img src="https://www.huisraad.app/mail/header.jpg" width="560" alt="Lichte woonkamer" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:20px 20px 0 0;" />
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding:30px 32px 8px 32px;font-family:Georgia,'Times New Roman',serif;font-size:28px;line-height:1.2;color:#2a2520;">
+                      Welkom thuis.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 32px 22px 32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#6b6158;">
+                      Typ deze code in Huisraad om in te loggen. Hij is een uur geldig en werkt één keer.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding:0 32px 26px 32px;">
+                      <div style="background:#f3e2d8;border-radius:16px;padding:18px 10px;font-family:'Courier New',Courier,monospace;font-size:36px;letter-spacing:10px;font-weight:bold;color:#a4593b;">
+                        {{ .Token }}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding:0 32px 30px 32px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#6b6158;">
+                      Op dit apparaat? Dan kan het ook met één tik:<br /><br />
+                      <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#a4593b;color:#ffffff;text-decoration:none;font-weight:bold;padding:13px 26px;border-radius:999px;">Inloggen bij Huisraad</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- voet -->
+            <tr>
+              <td style="padding:20px 8px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#9a8f84;text-align:center;">
+                Je krijgt deze mail omdat iemand met {{ .Email }} wilde inloggen bij Huisraad.<br />
+                Was jij dat niet? Dan kun je deze mail negeren.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

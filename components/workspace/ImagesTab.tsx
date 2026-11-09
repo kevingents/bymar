@@ -23,6 +23,8 @@ const KIND_LABEL: Record<ProjectImage["kind"], string> = {
   upload: "Eigen foto",
   progress: "Voortgang",
   build: "Bouwresultaat",
+  render: "Uit 3D",
+  moodboard: "Moodboard",
 };
 
 export function ImagesTab({ project, onCover }: { project: Project; onCover: (path: string) => void }) {

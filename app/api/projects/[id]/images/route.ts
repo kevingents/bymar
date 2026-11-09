@@ -1,12 +1,13 @@
 import { createImage } from "@/lib/ai";
 import { BUCKET, requireProject } from "@/lib/supabase/server";
+import { guardAi } from "@/lib/usage";
 
 export const maxDuration = 120;
 
 type Body = {
   prompt?: string;
   sourcePath?: string | null;
-  kind?: "generated" | "restyle" | "build";
+  kind?: "generated" | "restyle" | "build" | "render";
   buildId?: string;
 };
 
@@ -30,12 +31,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     source = { data: new Uint8Array(await blob.arrayBuffer()), mediaType: blob.type || "image/jpeg" };
   }
 
+  if (body.kind === "render" && !source) return Response.json({ error: "Geen 3D-beeld ontvangen." }, { status: 400 });
+  const limited = await guardAi(sb, "image");
+  if (limited) return limited;
+
   const styleHint = [project.style && `stijl ${project.style}`, project.room_type && `ruimte: ${project.room_type}`]
     .filter(Boolean)
     .join(", ");
 
   try {
-    const image = await createImage({ prompt: styleHint ? `${prompt} (${styleHint})` : prompt, source });
+    const image = await createImage({
+      prompt: styleHint ? `${prompt} (${styleHint})` : prompt,
+      source,
+      mode: body.kind === "render" ? "render" : undefined,
+    });
     const ext = image.mediaType.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
     const path = `${user.id}/${project.id}/${crypto.randomUUID()}.${ext}`;
     const up = await sb.storage.from(BUCKET).upload(path, image.data, { contentType: image.mediaType });

@@ -2,6 +2,7 @@ import { streamText, type ModelMessage } from "ai";
 import { BASE_SYSTEM, TEXT_MODEL, projectContext } from "@/lib/ai";
 import { floorplanSummary } from "@/lib/floorplan";
 import { BUCKET, requireProject } from "@/lib/supabase/server";
+import { guardAi } from "@/lib/usage";
 import type { ChatMessage } from "@/lib/types";
 
 export const maxDuration = 120;
@@ -18,6 +19,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (imagePath && !imagePath.startsWith(`${user.id}/`)) {
     return Response.json({ error: "Deze foto hoort niet bij jouw account." }, { status: 403 });
   }
+
+  const limited = await guardAi(sb, "text");
+  if (limited) return limited;
 
   const { data: history } = await sb
     .from("messages")

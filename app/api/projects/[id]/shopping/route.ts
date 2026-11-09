@@ -3,6 +3,7 @@ import { BASE_SYSTEM, TEXT_MODEL, projectContext } from "@/lib/ai";
 import { floorplanSummary } from "@/lib/floorplan";
 import { ShoppingSuggestionSchema, type ShoppingItem } from "@/lib/schemas";
 import { requireProject } from "@/lib/supabase/server";
+import { guardAi } from "@/lib/usage";
 
 export const maxDuration = 120;
 
@@ -15,6 +16,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { wish } = (await req.json()) as { wish?: string };
   const existing = ((project.shopping ?? []) as ShoppingItem[]).map((i) => `- ${i.name}`).join("\n");
   const plan = floorplanSummary(project.floorplan);
+
+  const limited = await guardAi(sb, "text");
+  if (limited) return limited;
 
   try {
     const { output } = await generateText({

@@ -17,7 +17,7 @@ export type Project = {
   updated_at: string;
 };
 
-export type ImageKind = "generated" | "restyle" | "upload" | "progress" | "build";
+export type ImageKind = "generated" | "restyle" | "upload" | "progress" | "build" | "render" | "moodboard";
 
 export type ProjectImage = {
   id: string;

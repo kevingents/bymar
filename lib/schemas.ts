@@ -164,3 +164,62 @@ export const LayoutSuggestionSchema = z.object({
   ),
 });
 export type LayoutSuggestion = z.infer<typeof LayoutSuggestionSchema>;
+
+/* -------------------------------------------------------------- Shop the look */
+
+export const ShopLookSchema = z.object({
+  items: z.array(
+    z.object({
+      name: z.string().describe("Wat het is, bv. 'Linnen hoekbank'"),
+      category: z.string().describe("bv. Meubels, Verlichting, Textiel, Decoratie, Planten"),
+      description: z.string().describe("Kleur, materiaal en stijl, kort"),
+      estPrice: z.number().describe("Realistische prijs in euro voor een vergelijkbaar product"),
+      store: StoreKey,
+      searchQuery: z.string().describe("Zoekterm waarmee je iets vergelijkbaars vindt bij die winkel"),
+      x: z.number().describe("Middelpunt van het object, horizontaal in procent van de beeldbreedte (0-100)"),
+      y: z.number().describe("Middelpunt van het object, verticaal in procent van de beeldhoogte (0-100)"),
+    }),
+  ),
+});
+export type ShopLook = z.infer<typeof ShopLookSchema>;
+
+/* ------------------------------------------------------ Plattegrond uit beeld */
+
+export const FloorplanFromImageSchema = z.object({
+  note: z.string().describe("Korte toelichting: wat je hebt herkend en wat onzeker is"),
+  rooms: z.array(
+    z.object({
+      name: z.string(),
+      x: z.number().describe("Linkerkant in cm"),
+      y: z.number().describe("Bovenkant in cm"),
+      w: z.number().describe("Breedte in cm"),
+      h: z.number().describe("Diepte in cm"),
+    }),
+  ),
+  openings: z.array(
+    z.object({
+      room: z.string().describe("Naam van de ruimte waar de wand bij hoort"),
+      type: z.enum(["door", "window"]),
+      wall: z.enum(["n", "e", "s", "w"]).describe("n = boven, e = rechts, s = onder, w = links"),
+      offset: z.number().describe("Afstand in cm vanaf de linker- of bovenhoek van die wand"),
+      width: z.number().describe("Breedte in cm"),
+    }),
+  ),
+});
+export type FloorplanFromImage = z.infer<typeof FloorplanFromImageSchema>;
+
+/* ------------------------------------------------------------- Kleurpalet */
+
+export const PaletteSchema = z.object({
+  name: z.string().describe("Naam voor het palet, bv. 'Zachte zandtinten'"),
+  colors: z.array(
+    z.object({
+      hex: z.string().describe("Hex-kleur zoals #C9B79C"),
+      name: z.string().describe("Nederlandse kleurnaam"),
+      role: z.string().describe("Waar te gebruiken: muur, accentmuur, houtwerk, textiel, accent"),
+      paint: z.string().describe("Een verfkleur die er dichtbij zit, met merk, bv. 'Flexa Creations Warm Linnen' — als suggestie"),
+    }),
+  ),
+  advice: z.string().describe("2-3 zinnen hoe je dit palet in de ruimte verdeelt"),
+});
+export type Palette = z.infer<typeof PaletteSchema>;
