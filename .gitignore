@@ -43,3 +43,6 @@ next-env.d.ts
 
 # app-worktrees van Claude
 .claude/worktrees/
+
+.vercel
+.env*.local
