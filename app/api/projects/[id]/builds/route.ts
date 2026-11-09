@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { output } = await generateText({
       model: TEXT_MODEL,
       system: BUILD_SYSTEM,
-      reasoning: "high",
+      reasoning: "medium",
       maxOutputTokens: 32000,
       output: Output.object({ schema: BuildGuideSchema }),
       prompt: `${projectContext(project)}\n\nWat ze wil maken:\n${wish}`,

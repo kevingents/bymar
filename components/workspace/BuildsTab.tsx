@@ -192,7 +192,7 @@ export function BuildsTab({ project }: { project: Project }) {
         </button>
         {busy && (
           <p className="mt-2 text-center text-xs text-ink-3">
-            Even geduld: materialen, zaaglijst en stappen worden doorgerekend. Dit duurt 1 tot 2 minuten.
+            Even geduld: materialen, zaaglijst en stappen worden doorgerekend. Dit duurt 1 tot 3 minuten; laat dit scherm open.
           </p>
         )}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
