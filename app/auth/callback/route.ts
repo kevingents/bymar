@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { supabaseServer } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/next-path";
 
 /** Landingsplek voor de inloglink uit de mail (naast de 6-cijferige code). */
 export async function GET(req: Request) {
@@ -14,5 +15,6 @@ export async function GET(req: Request) {
   if (code) ok = !(await sb.auth.exchangeCodeForSession(code)).error;
   else if (tokenHash && type) ok = !(await sb.auth.verifyOtp({ token_hash: tokenHash, type })).error;
 
-  return NextResponse.redirect(new URL(ok ? "/projecten" : "/?login=mislukt", url.origin));
+  const next = safeNext(url.searchParams.get("next"));
+  return NextResponse.redirect(new URL(ok ? next : `/?login=mislukt&next=${encodeURIComponent(next)}`, url.origin));
 }

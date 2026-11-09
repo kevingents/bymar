@@ -381,7 +381,21 @@ function HoldButton({ icon, label, onHold }: { icon: IconName; label: string; on
   );
 }
 
-export default function Walkthrough3D({ plan }: { plan: Floorplan }) {
+export default function Walkthrough3D({
+  plan,
+  onCapture,
+  capturing = false,
+}: {
+  plan: Floorplan;
+  /** Krijgt een PNG van het huidige standpunt (voor "maak er een foto van"). */
+  onCapture?: (png: Blob) => void;
+  capturing?: boolean;
+}) {
+  const wrap = useRef<HTMLDivElement>(null);
+  function capture() {
+    const canvas = wrap.current?.querySelector("canvas");
+    canvas?.toBlob((b) => b && onCapture?.(b), "image/png");
+  }
   const [mode, setMode] = useState<"orbit" | "walk">("orbit");
   const keys = useRef<Keys>({ f: false, b: false, l: false, r: false });
   // Overzicht: hoog en schuin van voren, zodat je over de voormuren heen het huis in kijkt.
@@ -425,8 +439,14 @@ export default function Walkthrough3D({ plan }: { plan: Floorplan }) {
   }, [mode]);
 
   return (
-    <div className="relative h-[58dvh] min-h-[340px] w-full overflow-hidden rounded-2xl bg-surface-2">
-      <Canvas shadows dpr={[1, 2]} camera={{ fov: mode === "walk" ? 70 : 45, near: 0.05, far: 200, position: orbitStart }} key={mode}>
+    <div ref={wrap} className="relative h-[58dvh] min-h-[340px] w-full overflow-hidden rounded-2xl bg-surface-2">
+      <Canvas
+        shadows
+        dpr={[1, 2]}
+        gl={{ preserveDrawingBuffer: !!onCapture }}
+        camera={{ fov: mode === "walk" ? 70 : 45, near: 0.05, far: 200, position: orbitStart }}
+        key={mode}
+      >
         <Scene plan={plan} mode={mode} keys={keys} />
       </Canvas>
 
@@ -438,6 +458,17 @@ export default function Walkthrough3D({ plan }: { plan: Floorplan }) {
           <Icon name="walk" size={16} /> Rondlopen
         </button>
       </div>
+
+      {onCapture && (
+        <button
+          onClick={capture}
+          disabled={capturing}
+          className="btn-primary absolute bottom-4 right-3 px-3.5 py-2 shadow-lg sm:bottom-auto sm:top-3"
+          style={mode === "walk" ? { top: "auto", bottom: "1rem" } : undefined}
+        >
+          <Icon name={capturing ? "loader" : "camera"} size={16} /> {capturing ? "Foto maken…" : "Maak er een foto van"}
+        </button>
+      )}
 
       {mode === "walk" && (
         <>

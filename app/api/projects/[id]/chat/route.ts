@@ -1,7 +1,7 @@
 import { streamText, type ModelMessage } from "ai";
 import { BASE_SYSTEM, TEXT_MODEL, projectContext } from "@/lib/ai";
 import { floorplanSummary } from "@/lib/floorplan";
-import { BUCKET, requireProject } from "@/lib/supabase/server";
+import { BUCKET, inProject, requireProject } from "@/lib/supabase/server";
 import { guardAi } from "@/lib/usage";
 import type { ChatMessage } from "@/lib/types";
 
@@ -11,12 +11,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const ctx = await requireProject(id);
   if ("error" in ctx) return ctx.error;
-  const { sb, user, project } = ctx;
+  const { sb, project } = ctx;
 
   const { message, imagePath } = (await req.json()) as { message?: string; imagePath?: string | null };
   const text = message?.trim();
   if (!text) return Response.json({ error: "Leeg bericht." }, { status: 400 });
-  if (imagePath && !imagePath.startsWith(`${user.id}/`)) {
+  if (imagePath && !inProject(imagePath, project.id)) {
     return Response.json({ error: "Deze foto hoort niet bij jouw account." }, { status: 403 });
   }
 

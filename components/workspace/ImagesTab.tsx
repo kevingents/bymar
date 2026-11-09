@@ -8,6 +8,8 @@ import { Icon } from "@/components/ui/Icon";
 import { useUser } from "@/components/auth/AuthGate";
 import { BeforeAfter } from "@/components/ui/BeforeAfter";
 import { RoomScene } from "@/components/visual/RoomScene";
+import { ShopTheLook } from "./ShopTheLook";
+import type { ShoppingItem } from "@/lib/schemas";
 
 const IDEAS = [
   "Lichte woonkamer met linnen bank, eiken vloer en veel planten",
@@ -27,7 +29,15 @@ const KIND_LABEL: Record<ProjectImage["kind"], string> = {
   moodboard: "Moodboard",
 };
 
-export function ImagesTab({ project, onCover }: { project: Project; onCover: (path: string) => void }) {
+export function ImagesTab({
+  project,
+  onCover,
+  onShopping,
+}: {
+  project: Project;
+  onCover: (path: string) => void;
+  onShopping: (items: ShoppingItem[]) => void;
+}) {
   const user = useUser();
   const [images, setImages] = useState<ProjectImage[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -38,6 +48,12 @@ export function ImagesTab({ project, onCover }: { project: Project; onCover: (pa
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<ProjectImage | null>(null);
+  const [shopOpen, setShopOpen] = useState(false);
+  const [votes, setVotes] = useState<Record<string, number>>({});
+  const shoppingRef = useRef(project.shopping ?? []);
+  useEffect(() => {
+    shoppingRef.current = project.shopping ?? [];
+  }, [project.shopping]);
   const fileRef = useRef<HTMLInputElement>(null);
   const progressRef = useRef<HTMLInputElement>(null);
 
@@ -51,6 +67,13 @@ export function ImagesTab({ project, onCover }: { project: Project; onCover: (pa
         const list = (data ?? []) as ProjectImage[];
         setImages(list);
         setUrls(await signedUrls(list.flatMap((i) => [i.path, i.source_path])));
+        const ids = list.map((i) => i.id);
+        if (ids.length) {
+          const { data: v } = await supabase().from("image_votes").select("image_id").in("image_id", ids);
+          const count: Record<string, number> = {};
+          for (const r of v ?? []) count[r.image_id] = (count[r.image_id] ?? 0) + 1;
+          setVotes(count);
+        }
       });
   }, [project.id]);
 
@@ -257,6 +280,11 @@ export function ImagesTab({ project, onCover }: { project: Project; onCover: (pa
                     <span className="absolute left-2 top-2 rounded-full bg-surface/90 px-2 py-0.5 text-[11px] text-ink-2">
                       {KIND_LABEL[img.kind]}
                     </span>
+                    {votes[img.id] ? (
+                      <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-surface/90 px-2 py-0.5 text-[11px] text-ink">
+                        <Icon name="heart" size={12} className="text-accent" /> {votes[img.id]}
+                      </span>
+                    ) : null}
                     {project.cover_path === img.path && (
                       <span className="absolute right-2 top-2 rounded-full bg-accent px-2 py-0.5 text-[11px] text-accent-ink">Omslag</span>
                     )}
@@ -269,8 +297,20 @@ export function ImagesTab({ project, onCover }: { project: Project; onCover: (pa
       </section>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/90 pt-[env(safe-area-inset-top)]" onClick={() => setOpen(null)}>
-          <div className="flex items-center justify-end gap-1 p-2" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-black/90 pt-[env(safe-area-inset-top)]"
+          onClick={() => {
+            setOpen(null);
+            setShopOpen(false);
+          }}
+        >
+          <div className="no-scrollbar flex items-center justify-end gap-1 overflow-x-auto p-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              className={`btn shrink-0 hover:bg-white/10 ${shopOpen ? "bg-white/15 text-white" : "text-white/80"}`}
+              onClick={() => setShopOpen((s) => !s)}
+            >
+              <Icon name="cart" size={18} /> Shop the look
+            </button>
             <button
               className="btn text-white/80 hover:bg-white/10"
               onClick={() => {
@@ -280,10 +320,10 @@ export function ImagesTab({ project, onCover }: { project: Project; onCover: (pa
                 setOpen(null);
               }}
             >
-              <Icon name="wand" size={18} /> Verder bewerken
+              <Icon name="wand" size={18} /> <span className="hidden sm:inline">Verder bewerken</span>
             </button>
             <button className="btn text-white/80 hover:bg-white/10" onClick={() => onCover(open.path)}>
-              <Icon name="home" size={18} /> Als omslag
+              <Icon name="home" size={18} /> <span className="hidden sm:inline">Als omslag</span>
             </button>
             <a className="btn text-white/80 hover:bg-white/10" href={urls[open.path]} download target="_blank" rel="noreferrer" aria-label="Downloaden">
               <Icon name="download" size={18} />
@@ -291,12 +331,33 @@ export function ImagesTab({ project, onCover }: { project: Project; onCover: (pa
             <button className="btn text-white/80 hover:bg-white/10" onClick={() => remove(open)} aria-label="Verwijderen">
               <Icon name="trash" size={18} />
             </button>
-            <button className="btn text-white/80 hover:bg-white/10" onClick={() => setOpen(null)} aria-label="Sluiten">
+            <button
+              className="btn text-white/80 hover:bg-white/10"
+              onClick={() => {
+                setOpen(null);
+                setShopOpen(false);
+              }}
+              aria-label="Sluiten"
+            >
               <Icon name="x" size={20} />
             </button>
           </div>
           <div className="flex min-h-0 flex-1 items-center justify-center p-3" onClick={(e) => e.stopPropagation()}>
-            {open.source_path && urls[open.source_path] ? (
+            {shopOpen ? (
+              <ShopTheLook
+                key={open.id}
+                projectId={project.id}
+                imageId={open.id}
+                url={urls[open.path]}
+                cached={open.shop}
+                onCached={(shop) => setImages((l) => l.map((i) => (i.id === open.id ? { ...i, shop } : i)))}
+                onAdd={(item) => {
+                  const next = [...shoppingRef.current, item];
+                  shoppingRef.current = next;
+                  onShopping(next);
+                }}
+              />
+            ) : open.source_path && urls[open.source_path] ? (
               <BeforeAfter before={urls[open.source_path]} after={urls[open.path]} />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element

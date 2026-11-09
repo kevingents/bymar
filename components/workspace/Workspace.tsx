@@ -9,11 +9,14 @@ import type { Project } from "@/lib/types";
 import { euro } from "@/lib/stores";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ProjectForm } from "@/components/projects/ProjectForm";
+import { useUser } from "@/components/auth/AuthGate";
 import { ImagesTab } from "./ImagesTab";
 import { AdviceTab } from "./AdviceTab";
 import { BuildsTab } from "./BuildsTab";
 import { ShoppingTab } from "./ShoppingTab";
 import { ShareTab } from "./ShareTab";
+import { ColorTab } from "./ColorTab";
+import { MoodboardTab } from "./MoodboardTab";
 import { FloorplanTab } from "@/components/floorplan/FloorplanTab";
 
 const TABS: { key: string; label: string; icon: IconName }[] = [
@@ -21,6 +24,8 @@ const TABS: { key: string; label: string; icon: IconName }[] = [
   { key: "advies", label: "Advies", icon: "chat" },
   { key: "maken", label: "Zelf maken", icon: "hammer" },
   { key: "plattegrond", label: "Plattegrond & 3D", icon: "plan" },
+  { key: "kleur", label: "Kleur & verf", icon: "palette" },
+  { key: "moodboard", label: "Moodboard", icon: "grid" },
   { key: "inkoop", label: "Inkooplijst", icon: "cart" },
   { key: "delen", label: "Delen", icon: "share" },
 ];
@@ -28,6 +33,7 @@ const TABS: { key: string; label: string; icon: IconName }[] = [
 export function Workspace() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const user = useUser();
   const [project, setProject] = useState<Project | null | undefined>(undefined);
   // Workspace rendert alleen in de browser (achter AuthGate), dus de hash is hier beschikbaar.
   const [tab, setTab] = useState(() => {
@@ -50,6 +56,20 @@ export function Workspace() {
       .eq("id", id)
       .maybeSingle()
       .then(({ data }) => setProject((data as Project) ?? null));
+  }, [id]);
+
+  // Live: wijzigingen van wie er nog meer in dit project werkt.
+  useEffect(() => {
+    const sb = supabase();
+    const channel = sb
+      .channel(`project-${id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "projects", filter: `id=eq.${id}` }, (payload) =>
+        setProject((p) => (p ? { ...p, ...(payload.new as Project) } : p)),
+      )
+      .subscribe();
+    return () => {
+      sb.removeChannel(channel);
+    };
   }, [id]);
 
   const update = useCallback(
@@ -127,10 +147,18 @@ export function Workspace() {
       </header>
 
       <main className="mx-auto max-w-6xl px-3 py-5 sm:px-6">
-        {tab === "beelden" && <ImagesTab project={project} onCover={(cover_path) => update({ cover_path })} />}
+        {tab === "beelden" && <ImagesTab project={project} onCover={(cover_path) => update({ cover_path })} onShopping={(shopping) => update({ shopping })} />}
         {tab === "advies" && <AdviceTab project={project} />}
         {tab === "maken" && <BuildsTab project={project} />}
         {tab === "plattegrond" && <FloorplanTab project={project} onSave={(floorplan) => update({ floorplan })} />}
+        {tab === "kleur" && (
+          <ColorTab
+            project={project}
+            onPalettes={(palettes) => update({ palettes })}
+            onWallColor={(wallColor) => project.floorplan && update({ floorplan: { ...project.floorplan, wallColor } })}
+          />
+        )}
+        {tab === "moodboard" && <MoodboardTab project={project} />}
         {tab === "inkoop" && <ShoppingTab project={project} onChange={(shopping) => update({ shopping })} onReplace={(shopping) => setProject({ ...project, shopping })} />}
         {tab === "delen" && <ShareTab project={project} onChange={update} />}
       </main>
@@ -156,6 +184,7 @@ export function Workspace() {
                 setEditing(false);
               }}
             />
+            {project.owner_id === user.id && (
             <div className="mt-8 border-t border-line pt-4">
               <button
                 className="btn-ghost text-danger"
@@ -173,6 +202,7 @@ export function Workspace() {
                 <Icon name="trash" size={18} /> Project verwijderen
               </button>
             </div>
+            )}
           </div>
         </div>
       )}

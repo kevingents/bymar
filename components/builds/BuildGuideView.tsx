@@ -4,6 +4,8 @@ import type { BuildGuide } from "@/lib/schemas";
 import type { BuildProgress } from "@/lib/types";
 import { euro, storeLink } from "@/lib/stores";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { CutPlan } from "./CutPlan";
+import { buildIcs, downloadIcs } from "@/lib/ics";
 
 const DIFF_COLOR: Record<BuildGuide["difficulty"], string> = {
   makkelijk: "bg-olive-soft text-olive",
@@ -58,6 +60,26 @@ export function BuildGuideView({
   imageAction?: React.ReactNode;
 }) {
   const steps = progress.steps ?? {};
+  const dates = progress.dates ?? {};
+  const planned = guide.steps
+    .map((s, i) => ({ s, i, date: dates[i] }))
+    .filter((x) => x.date)
+    .sort((a, b) => a.date!.localeCompare(b.date!));
+  const setDate = onProgress && ((i: number, date: string) => onProgress({ ...progress, dates: { ...dates, [i]: date } }));
+  function toAgenda() {
+    const ics = buildIcs(
+      guide.title,
+      planned.map(({ s, i, date }) => ({
+        date: date!,
+        summary: `${guide.title}: stap ${i + 1}, ${s.title}`,
+        description: `${s.description}
+
+Duur: ${s.duration}${s.warning ? `
+Let op: ${s.warning}` : ""}`,
+      })),
+    );
+    downloadIcs(`${guide.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.ics`, ics);
+  }
   const bought = progress.materials ?? {};
   const doneCount = guide.steps.filter((_, i) => steps[i]).length;
   const pct = guide.steps.length ? Math.round((doneCount / guide.steps.length) * 100) : 0;
@@ -194,6 +216,12 @@ export function BuildGuideView({
         </Section>
       )}
 
+      {guide.cuttingList.length > 0 && (
+        <Section icon="grid" title="Zaagplan">
+          <CutPlan guide={guide} />
+        </Section>
+      )}
+
       <Section icon="hammer" title="Gereedschap">
         <ul className="grid gap-2 sm:grid-cols-2">
           {guide.tools.map((t, i) => (
@@ -206,7 +234,22 @@ export function BuildGuideView({
         </ul>
       </Section>
 
-      <Section icon="check" title="Stap voor stap">
+      <Section
+        icon="check"
+        title="Stap voor stap"
+        aside={
+          onProgress && planned.length > 0 ? (
+            <button className="btn-outline px-3 py-1.5 text-xs print:hidden" onClick={toAgenda}>
+              <Icon name="clock" size={14} /> {planned.length} in agenda zetten
+            </button>
+          ) : undefined
+        }
+      >
+        {onProgress && planned.length === 0 && (
+          <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-xs text-ink-2 print:hidden">
+            Tip: kies per stap een dag, dan zet je de hele klus met één tik in je agenda, met een herinnering de avond ervoor.
+          </p>
+        )}
         <ol className="space-y-4">
           {guide.steps.map((s, i) => (
             <li key={i} className="flex gap-3">
@@ -216,7 +259,18 @@ export function BuildGuideView({
                   <h4 className={`font-medium ${steps[i] ? "text-ink-3 line-through" : ""}`}>
                     {i + 1}. {s.title}
                   </h4>
-                  <span className="text-xs text-ink-3">{s.duration}</span>
+                  <span className="flex items-center gap-2 text-xs text-ink-3">
+                    {s.duration}
+                    {setDate ? (
+                      <input
+                        type="date"
+                        aria-label={`Datum voor stap ${i + 1}`}
+                        value={dates[i] ?? ""}
+                        onChange={(e) => setDate(i, e.target.value)}
+                        className="rounded-lg border border-line bg-surface px-1.5 py-0.5 text-xs text-ink print:hidden"
+                      />
+                    ) : null}
+                  </span>
                 </div>
                 <p className="mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{s.description}</p>
                 {s.tips.length > 0 && (

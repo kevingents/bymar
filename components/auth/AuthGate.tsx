@@ -36,11 +36,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     const sb = supabase();
     sb.auth.getUser().then(({ data }) => {
       setUser(data.user ?? null);
-      if (!data.user) router.replace("/");
+      if (!data.user) router.replace(`/?next=${encodeURIComponent(window.location.pathname)}`);
     });
     const { data: sub } = sb.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null);
-      if (!session) router.replace("/");
+      if (!session) router.replace(`/?next=${encodeURIComponent(window.location.pathname)}`);
     });
     return () => sub.subscription.unsubscribe();
   }, [router]);

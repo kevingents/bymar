@@ -1,5 +1,5 @@
 import { createImage } from "@/lib/ai";
-import { BUCKET, requireProject } from "@/lib/supabase/server";
+import { BUCKET, inProject, requireProject } from "@/lib/supabase/server";
 import { guardAi } from "@/lib/usage";
 
 export const maxDuration = 120;
@@ -23,8 +23,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   let source: { data: Uint8Array; mediaType: string } | undefined;
   if (body.sourcePath) {
-    if (!body.sourcePath.startsWith(`${user.id}/`)) {
-      return Response.json({ error: "Deze foto hoort niet bij jouw account." }, { status: 403 });
+    if (!inProject(body.sourcePath, project.id)) {
+      return Response.json({ error: "Deze foto hoort niet bij dit project." }, { status: 403 });
     }
     const { data: blob, error } = await sb.storage.from(BUCKET).download(body.sourcePath);
     if (error || !blob) return Response.json({ error: "De foto kon niet worden geladen." }, { status: 400 });

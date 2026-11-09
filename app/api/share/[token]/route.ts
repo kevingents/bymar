@@ -4,6 +4,7 @@ type SharedData = {
   project: { cover_path: string | null } & Record<string, unknown>;
   images: { path: string; source_path: string | null }[];
   builds: { image_path: string | null }[];
+  moodboard?: { image_path: string | null }[];
   comments: unknown[];
 };
 
@@ -20,6 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     shared.project.cover_path,
     ...shared.images.flatMap((i) => [i.path, i.source_path]),
     ...shared.builds.map((b) => b.image_path),
+    ...(shared.moodboard ?? []).map((m) => m.image_path),
   ].filter((p): p is string => !!p);
   const urls: Record<string, string> = {};
   if (paths.length) {

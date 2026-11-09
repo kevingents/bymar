@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { Comment, Project } from "@/lib/types";
 import { Icon } from "@/components/ui/Icon";
+import { Collaborators } from "@/components/collab/Collaborators";
 
 function newToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
@@ -46,10 +47,11 @@ export function ShareTab({ project, onChange }: { project: Project; onChange: (p
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      <Collaborators project={project} onChange={onChange} />
       <section className="card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-xl">Deel je project</h2>
+            <h2 className="font-display text-xl">Laten meekijken</h2>
             <p className="mt-1 text-sm text-ink-2">
               Iedereen met de link ziet je beelden, bouwplannen, plattegrond (ook in 3D) en inkooplijst, en kan een reactie
               achterlaten. Bewerken kan alleen jij.

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { Icon } from "@/components/ui/Icon";
+import { nextFromLocation } from "@/lib/next-path";
 
 /** Inloggen met een e-mailcode (of de link in dezelfde mail). */
 export function LoginCard({ id, title = "Inloggen of account maken" }: { id?: string; title?: string }) {
@@ -20,7 +21,7 @@ export function LoginCard({ id, title = "Inloggen of account maken" }: { id?: st
     setError(null);
     const { error } = await supabase().auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextFromLocation())}` },
     });
     setBusy(false);
     if (error) setError("Dat lukte niet. Klopt je e-mailadres? Probeer het anders over een paar minuten opnieuw.");
@@ -34,7 +35,7 @@ export function LoginCard({ id, title = "Inloggen of account maken" }: { id?: st
     const { error } = await supabase().auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
     setBusy(false);
     if (error) setError("Deze code klopt niet of is verlopen.");
-    else router.replace("/projecten");
+    else router.replace(nextFromLocation());
   }
 
   return (

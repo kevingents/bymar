@@ -44,3 +44,8 @@ export async function requireProject(projectId: string) {
   if (!project) return { error: Response.json({ error: "Project niet gevonden." }, { status: 404 }) } as const;
   return { sb, user, project } as const;
 }
+
+/** Hoort dit opslagpad bij dit project? Paden zijn <maker>/<project>/<bestand>. */
+export function inProject(path: string | null | undefined, projectId: string) {
+  return !!path && path.split("/")[1] === projectId && !path.includes("..");
+}

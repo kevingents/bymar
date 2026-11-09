@@ -13,6 +13,7 @@ import { BeforeAfter } from "@/components/ui/BeforeAfter";
 import { CabinetDiagram } from "@/components/visual/CabinetDiagram";
 import { isConfigured, SetupNotice } from "./AuthGate";
 import { LoginCard } from "./LoginCard";
+import { nextFromLocation } from "@/lib/next-path";
 
 const Showroom = dynamic(() => import("@/components/floorplan/Walkthrough3D").then((m) => m.Showroom), {
   ssr: false,
@@ -53,7 +54,7 @@ export function Welcome() {
     supabase()
       .auth.getUser()
       .then(({ data }) => {
-        if (data.user) router.replace("/projecten");
+        if (data.user) router.replace(nextFromLocation());
       });
   }, [router]);
 

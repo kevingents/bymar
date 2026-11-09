@@ -175,3 +175,29 @@ export function roomOf(plan: Floorplan, item: Pick<FloorItem, "x" | "y" | "w" | 
   const cy = item.y + f.h / 2;
   return plan.rooms.find((r) => cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h) ?? null;
 }
+
+/** Zet de herkenning uit een foto om naar een bruikbare plattegrond (genormaliseerd en op 5 cm afgerond). */
+export function floorplanFromDetected(
+  det: import("./schemas").FloorplanFromImage,
+  base?: Pick<Floorplan, "wallHeight" | "wallColor">,
+): Floorplan {
+  const r5 = (v: number) => Math.round(v / 5) * 5;
+  const valid = det.rooms.filter((r) => r.w >= 50 && r.h >= 50);
+  const minX = Math.min(...valid.map((r) => r.x), 0);
+  const minY = Math.min(...valid.map((r) => r.y), 0);
+  const rooms: Room[] = valid.map((r) => {
+    const name = r.name.toLowerCase();
+    const floor = /bad|toilet|wc|keuken/.test(name) ? "tegel-wit" : /balkon|terras/.test(name) ? "beton" : "eiken";
+    return { id: uid(), name: r.name, x: r5(r.x - minX), y: r5(r.y - minY), w: r5(r.w), h: r5(r.h), floor };
+  });
+  const openings: Opening[] = [];
+  for (const o of det.openings) {
+    const room = rooms.find((r) => r.name.toLowerCase() === o.room.toLowerCase());
+    if (!room) continue;
+    const len = wallLength(room, o.wall);
+    const width = Math.min(r5(o.width), len - 10);
+    if (width < 40) continue;
+    openings.push({ id: uid(), type: o.type, roomId: room.id, wall: o.wall, width, offset: Math.max(0, Math.min(len - width, r5(o.offset))) });
+  }
+  return { wallHeight: base?.wallHeight ?? 260, wallColor: base?.wallColor ?? "#F2EEE8", rooms, openings, items: [] };
+}

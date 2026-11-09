@@ -34,6 +34,9 @@ export function ProjectList() {
         <Logo />
         <div className="flex items-center gap-1">
           <span className="hidden text-sm text-ink-3 sm:inline">{user.email}</span>
+          <Link href="/instellingen" className="btn-ghost" aria-label="Instellingen">
+            <Icon name="sliders" size={18} />
+          </Link>
           <button className="btn-ghost" onClick={() => supabase().auth.signOut()} aria-label="Uitloggen">
             <Icon name="logout" size={18} />
           </button>
@@ -84,6 +87,11 @@ export function ProjectList() {
                     <img src={covers[p.cover_path]} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
                   ) : (
                     <RoomScene style={p.style} className="h-full w-full transition duration-500 group-hover:scale-[1.03]" />
+                  )}
+                  {p.owner_id !== user.id && (
+                    <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-olive px-2.5 py-1 text-xs text-white">
+                      <Icon name="user" size={14} /> Samen
+                    </span>
                   )}
                   {p.share_enabled && (
                     <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-surface/90 px-2.5 py-1 text-xs text-ink-2">

@@ -2,9 +2,12 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import { postJson } from "@/lib/client-api";
-import { FLOORS, FURNITURE, emptyFloorplan, footprint, roomOf, uid, wallLength } from "@/lib/floorplan";
-import { FURNITURE_TYPES, type FloorItem, type Floorplan, type FurnitureType, type LayoutSuggestion, type Wall } from "@/lib/schemas";
+import { postJson, uploadPhoto } from "@/lib/client-api";
+import { signedUrls } from "@/lib/supabase/client";
+import { BeforeAfter } from "@/components/ui/BeforeAfter";
+import { useUser } from "@/components/auth/AuthGate";
+import { FLOORS, FURNITURE, bounds, emptyFloorplan, floorplanFromDetected, footprint, roomOf, uid, wallLength } from "@/lib/floorplan";
+import { FURNITURE_TYPES, type FloorItem, type Floorplan, type FloorplanFromImage, type FurnitureType, type LayoutSuggestion, type Wall } from "@/lib/schemas";
 import type { Project } from "@/lib/types";
 import { Icon } from "@/components/ui/Icon";
 import { FloorplanEditor, WALLS, type Selection } from "./FloorplanEditor";
@@ -49,8 +52,69 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
   const [aiNote, setAiNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(true);
+  // Live: neem een plattegrond over die iemand anders heeft opgeslagen (niet tijdens eigen bewerkingen).
+  const [remote, setRemote] = useState(project.floorplan);
+  if (project.floorplan !== remote) {
+    setRemote(project.floorplan);
+    if (saved && project.floorplan && JSON.stringify(project.floorplan) !== JSON.stringify(plan)) setPlan(project.floorplan);
+  }
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const history = useRef<Floorplan[]>([]);
+  const user = useUser();
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [scan, setScan] = useState<{ busy: boolean; plan?: Floorplan; note?: string } | null>(null);
+  const [scanSel, setScanSel] = useState<Selection>(null);
+  const [render, setRender] = useState<{ busy: boolean; before?: string; after?: string } | null>(null);
+
+  async function renderPhoto(png: Blob) {
+    const before = URL.createObjectURL(png);
+    setRender({ busy: true, before });
+    setError(null);
+    try {
+      const sourcePath = await uploadPhoto(user.id, project.id, new File([png], "3d.png", { type: "image/png" }));
+      const { image } = await postJson<{ image: { path: string } }>(`/api/projects/${project.id}/images`, {
+        kind: "render",
+        sourcePath,
+        prompt: project.style ? `interieur in ${project.style}-stijl` : "warm en licht interieur",
+      });
+      const urls = await signedUrls([image.path]);
+      setRender({ busy: false, before, after: urls[image.path] });
+    } catch (e) {
+      setRender(null);
+      setError(e instanceof Error ? e.message : "De foto kon niet worden gemaakt.");
+    }
+  }
+
+  async function fromPhoto(file: File) {
+    setScan({ busy: true });
+    setError(null);
+    try {
+      const imagePath = await uploadPhoto(user.id, project.id, file);
+      const { detected } = await postJson<{ detected: FloorplanFromImage }>(`/api/projects/${project.id}/floorplan-from-image`, { imagePath });
+      const next = floorplanFromDetected(detected, plan);
+      if (next.rooms.length === 0) throw new Error("Er zijn geen ruimtes herkend. Probeer een scherpere foto, recht van boven.");
+      setScan({ busy: false, plan: next, note: detected.note });
+    } catch (e) {
+      setScan(null);
+      setError(e instanceof Error ? e.message : "Inlezen lukte niet.");
+    }
+  }
+
+  function acceptScan(mode: "replace" | "append") {
+    if (!scan?.plan) return;
+    if (mode === "replace") change({ ...scan.plan, items: [] });
+    else {
+      const b = bounds(plan);
+      const dx = plan.rooms.length ? b.maxX + 100 : 0;
+      const ids = new Map(scan.plan.rooms.map((r) => [r.id, uid()]));
+      change({
+        ...plan,
+        rooms: [...plan.rooms, ...scan.plan.rooms.map((r) => ({ ...r, id: ids.get(r.id)!, x: r.x + dx }))],
+        openings: [...plan.openings, ...scan.plan.openings.map((o) => ({ ...o, id: uid(), roomId: ids.get(o.roomId)! }))],
+      });
+    }
+    setScan(null);
+  }
   const [canUndo, setCanUndo] = useState(false);
 
   // Automatisch opslaan, kort na de laatste wijziging.
@@ -181,11 +245,32 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
       </div>
 
       {view === "3d" ? (
-        <Walkthrough3D plan={plan} />
+        <>
+          <Walkthrough3D plan={plan} onCapture={renderPhoto} capturing={render?.busy} />
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <p className="text-xs text-ink-3">
+            Kies een mooi standpunt (ook tijdens het rondlopen) en tik op &ldquo;Maak er een foto van&rdquo;: AI maakt er een echte interieurfoto van,
+            in je stijl. Die komt ook bij je beelden.
+          </p>
+        </>
       ) : (
         <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
           <div className="space-y-2">
             <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+              <button className="btn-outline shrink-0 px-3 py-2" onClick={() => photoRef.current?.click()} disabled={scan?.busy}>
+                <Icon name={scan?.busy ? "loader" : "camera"} size={16} /> {scan?.busy ? "Inlezen…" : "Uit foto"}
+              </button>
+              <input
+                ref={photoRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) fromPhoto(f);
+                  e.target.value = "";
+                }}
+              />
               <button className="btn-outline shrink-0 px-3 py-2" onClick={addRoom}>
                 <Icon name="plus" size={16} /> Ruimte
               </button>
@@ -216,6 +301,11 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
               </div>
             )}
 
+            {scan?.busy && (
+              <p className="flex items-center gap-2 rounded-xl bg-accent-soft p-3 text-sm">
+                <Icon name="loader" size={16} /> De plattegrond wordt gelezen: ruimtes, maten, deuren en ramen. Dit duurt ongeveer een minuut.
+              </p>
+            )}
             <FloorplanEditor plan={plan} onChange={(p) => change(p)} selection={sel} onSelect={setSel} />
             {error && <p className="text-sm text-danger">{error}</p>}
             {aiNote && (
@@ -333,6 +423,50 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
               </button>
             )}
           </aside>
+        </div>
+      )}
+
+      {render?.after && render.before && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/90 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]" onClick={() => setRender(null)}>
+          <div className="flex items-center justify-between pb-2 text-white">
+            <p className="font-display text-xl">Van 3D naar foto</p>
+            <button className="btn text-white/80 hover:bg-white/10" onClick={() => setRender(null)} aria-label="Sluiten">
+              <Icon name="x" size={20} />
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <BeforeAfter before={render.before} after={render.after} />
+          </div>
+          <p className="pt-2 text-center text-sm text-white/70">Sleep de lijn. De foto staat ook bij Beelden.</p>
+        </div>
+      )}
+
+      {scan?.plan && (
+        <div className="fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center" onClick={() => setScan(null)}>
+          <div
+            className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-w-3xl sm:rounded-3xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-2xl">Zo heb ik je plattegrond gelezen</h2>
+            {scan.note && <p className="mt-1 text-sm text-ink-2">{scan.note}</p>}
+            <div className="mt-4">
+              <FloorplanEditor plan={scan.plan} selection={scanSel} onSelect={setScanSel} readOnly />
+            </div>
+            <p className="mt-2 text-xs text-ink-3">Controleer de maten even; je kunt alles daarna nog aanpassen.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button className="btn-primary" onClick={() => acceptScan("replace")}>
+                <Icon name="check" size={18} /> Gebruik deze plattegrond
+              </button>
+              {plan.rooms.length > 0 && (
+                <button className="btn-outline" onClick={() => acceptScan("append")}>
+                  <Icon name="plus" size={18} /> Naast de huidige zetten
+                </button>
+              )}
+              <button className="btn-ghost" onClick={() => setScan(null)}>
+                Annuleren
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,4 +1,6 @@
-import type { BuildGuide, Floorplan, ShoppingItem } from "./schemas";
+import type { BuildGuide, Floorplan, Palette, ShoppingItem } from "./schemas";
+
+export type SavedPalette = Palette & { id: string; source_path: string | null; created_at: string };
 
 export type Project = {
   id: string;
@@ -11,8 +13,10 @@ export type Project = {
   cover_path: string | null;
   floorplan: Floorplan | null;
   shopping: ShoppingItem[];
+  palettes: SavedPalette[];
   share_enabled: boolean;
   share_token: string | null;
+  invite_token: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -26,6 +30,7 @@ export type ProjectImage = {
   prompt: string | null;
   source_path: string | null;
   path: string;
+  shop?: import("./schemas").ShopLook | null;
   created_at: string;
 };
 
@@ -38,7 +43,7 @@ export type ChatMessage = {
   created_at: string;
 };
 
-export type BuildProgress = { steps?: Record<string, boolean>; materials?: Record<string, boolean> };
+export type BuildProgress = { steps?: Record<string, boolean>; materials?: Record<string, boolean>; dates?: Record<string, string> };
 
 export type Build = {
   id: string;
