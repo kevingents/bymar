@@ -73,9 +73,11 @@ export async function imageWithFallback(inputs: ImageInput[], text: string) {
 }
 
 /** Maakt of bewerkt een beeld. Met `source` wordt de bestaande foto omgevormd. */
-export async function createImage(opts: { prompt: string; source?: ImageInput; mode?: "render" }) {
+export async function createImage(opts: { prompt: string; source?: ImageInput; mode?: "render" | "place" }) {
   const instruction =
-    opts.mode === "render"
+    opts.mode === "place"
+      ? `Dit is een foto van een bestaande kamer. Plaats er dit zelfgemaakte meubel in: ${opts.prompt}. Zet het op een logische plek (op de vloer of tegen een vrije muur), op realistische schaal volgens de genoemde maten, met kloppend perspectief, licht en schaduw. Verander verder niets aan de kamer: muren, ramen, vloer en andere meubels blijven precies zoals ze zijn. Fotorealistisch, geen tekst of watermerk.`
+      : opts.mode === "render"
       ? `Dit is een eenvoudige 3D-schets van een ingerichte ruimte. Maak er een fotorealistische interieurfoto van vanuit precies hetzelfde standpunt: behoud de indeling, de positie en de maat van de meubels, de ramen en deuren en het perspectief. Geef materialen, licht en details een realistische, mooie uitwerking. Wens: ${opts.prompt}. Geen tekst of watermerk.`
       : opts.source
         ? `Bewerk deze foto van een bestaande ruimte. Behoud de architectuur, ramen, deuren, perspectief en lichtinval precies; verander alleen inrichting, kleuren, materialen en styling. Wens: ${opts.prompt}. Fotorealistisch interieurbeeld, natuurlijk licht, geen tekst of watermerk in het beeld.`

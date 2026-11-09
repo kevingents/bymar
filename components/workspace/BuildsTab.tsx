@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { postJson } from "@/lib/client-api";
+import { postJson, uploadPhoto } from "@/lib/client-api";
+import { buildColor, buildFurniture, emptyFloorplan, uid } from "@/lib/floorplan";
+import type { Floorplan } from "@/lib/schemas";
+import { useUser } from "@/components/auth/AuthGate";
 import { signedUrls, supabase } from "@/lib/supabase/client";
 import type { Build, BuildProgress, Project, ProjectImage } from "@/lib/types";
 import { euro } from "@/lib/stores";
@@ -20,7 +23,20 @@ const EXAMPLES = [
 
 const LEVELS = ["Beginner", "Een beetje ervaring", "Ervaren klusser"];
 
-export function BuildsTab({ project }: { project: Project }) {
+export function BuildsTab({
+  project,
+  onFloorplan,
+  onGoTo,
+}: {
+  project: Project;
+  onFloorplan: (plan: Floorplan) => void;
+  onGoTo: (tab: string) => void;
+}) {
+  const user = useUser();
+  const roomPhotoRef = useRef<HTMLInputElement>(null);
+  const [placing, setPlacing] = useState<Build | null>(null);
+  const [placeRoom, setPlaceRoom] = useState("");
+  const [placed, setPlaced] = useState<string | null>(null);
   const [builds, setBuilds] = useState<Build[] | null>(null);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [active, setActive] = useState<string | null>(null);
@@ -62,6 +78,8 @@ export function BuildsTab({ project }: { project: Project }) {
       const { build } = await postJson<{ build: Build }>(`/api/projects/${project.id}/builds`, { request });
       setBuilds((l) => [build, ...(l ?? [])]);
       setActive(build.id);
+      // meteen laten zien hoe het eruit komt te zien
+      makeImage(build);
       setWish("");
       setSize("");
       setMaterial("");
@@ -80,14 +98,17 @@ export function BuildsTab({ project }: { project: Project }) {
     }, 400);
   }
 
-  async function makeImage(b: Build) {
+  async function makeImage(b: Build, sourcePath?: string) {
     setImgBusy(true);
     setError(null);
     try {
       const { image } = await postJson<{ image: ProjectImage }>(`/api/projects/${project.id}/images`, {
-        prompt: `Het zelfgemaakte object "${b.data.title}": ${b.data.summary} Afmetingen ${b.data.dimensions}. Toon het in een passend interieur.`,
+        prompt: sourcePath
+          ? `"${b.data.title}": ${b.data.summary} Buitenmaten ${b.data.dimensions}.`
+          : `Het zelfgemaakte object "${b.data.title}": ${b.data.summary} Afmetingen ${b.data.dimensions}. Toon het in een passend interieur.`,
         kind: "build",
         buildId: b.id,
+        sourcePath: sourcePath ?? null,
       });
       const u = await signedUrls([image.path]);
       setUrls((m) => ({ ...m, ...u }));
@@ -104,6 +125,42 @@ export function BuildsTab({ project }: { project: Project }) {
     await supabase().from("builds").delete().eq("id", b.id);
     setBuilds((l) => l?.filter((x) => x.id !== b.id) ?? null);
     setActive(null);
+  }
+
+  async function inMyRoom(b: Build, file: File) {
+    setImgBusy(true);
+    setError(null);
+    try {
+      const path = await uploadPhoto(user.id, project.id, file);
+      await makeImage(b, path);
+    } catch (e) {
+      setImgBusy(false);
+      setError(e instanceof Error ? e.message : "Uploaden lukte niet.");
+    }
+  }
+
+  function placeInPlan(b: Build) {
+    const plan = project.floorplan && project.floorplan.rooms.length ? project.floorplan : emptyFloorplan();
+    const room = plan.rooms.find((r) => r.id === placeRoom) ?? plan.rooms[0];
+    const f = buildFurniture(b.data);
+    const w = Math.min(f.w, room.w - 10);
+    const d = Math.min(f.d, room.h - 10);
+    const item = {
+      id: uid(),
+      type: f.type,
+      name: b.data.title,
+      w,
+      d,
+      h: f.h,
+      rotation: 0,
+      color: buildColor(b.data),
+      // tegen de bovenwand, in het midden
+      x: Math.round(room.x + room.w / 2 - w / 2),
+      y: Math.round(room.y + 8),
+    };
+    onFloorplan({ ...plan, items: [...plan.items, item] });
+    setPlaced(room.name);
+    setPlacing(null);
   }
 
   const current = builds?.find((b) => b.id === active);
@@ -125,18 +182,95 @@ export function BuildsTab({ project }: { project: Project }) {
           </div>
         </div>
         {error && <p className="mb-3 text-sm text-danger">{error}</p>}
+
+        <div className="card mb-4 flex flex-wrap items-center gap-2 p-3 print:hidden">
+          <span className="mr-auto text-sm font-medium">Zie het voor je</span>
+          <button className="btn-outline px-3 py-2" onClick={() => makeImage(current)} disabled={imgBusy}>
+            <Icon name={imgBusy ? "loader" : "sparkles"} size={16} /> In een interieur
+          </button>
+          <button className="btn-outline px-3 py-2" onClick={() => roomPhotoRef.current?.click()} disabled={imgBusy}>
+            <Icon name="camera" size={16} /> In mijn kamer
+          </button>
+          <button
+            className="btn-primary px-3 py-2"
+            onClick={() => {
+              setPlaceRoom(project.floorplan?.rooms[0]?.id ?? "");
+              setPlacing(current);
+            }}
+          >
+            <Icon name="plan" size={16} /> Zet in plattegrond
+          </button>
+          <input
+            ref={roomPhotoRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) inMyRoom(current, f);
+            }}
+          />
+          {imgBusy && <p className="w-full text-xs text-ink-3">Het beeld wordt gemaakt, dit duurt ongeveer 20 seconden.</p>}
+          {placed && (
+            <p className="flex w-full flex-wrap items-center gap-2 rounded-xl bg-olive-soft px-3 py-2 text-sm">
+              <Icon name="check" size={16} className="text-olive" /> Staat in {placed}.
+              <button className="font-medium text-accent hover:underline" onClick={() => onGoTo("plattegrond")}>
+                Bekijk in plattegrond en 3D
+              </button>
+            </p>
+          )}
+        </div>
+
         <BuildGuideView
           guide={current.data}
           progress={current.progress ?? {}}
           onProgress={(p) => saveProgress(current, p)}
           imageUrl={current.image_path ? urls[current.image_path] : null}
           imageAction={
-            <button className="btn-outline" onClick={() => makeImage(current)} disabled={imgBusy}>
-              <Icon name={imgBusy ? "loader" : "sparkles"} size={18} />
-              {imgBusy ? "Bezig…" : "Laat zien hoe het wordt"}
-            </button>
+            <span className="flex flex-col items-center gap-2 text-sm text-ink-3">
+              <Icon name={imgBusy ? "loader" : "image"} size={24} />
+              {imgBusy ? "Beeld wordt gemaakt…" : "Nog geen beeld"}
+            </span>
           }
         />
+
+        {placing && (
+          <div className="fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center" onClick={() => setPlacing(null)}>
+            <div
+              className="w-full rounded-t-3xl bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="font-display text-2xl">In de plattegrond zetten</h2>
+              <p className="mt-1 text-sm text-ink-2">
+                {placing.data.title}: {buildFurniture(placing.data).w} × {buildFurniture(placing.data).d} cm, {buildFurniture(placing.data).h} cm hoog.
+                Je kunt hem daarna verslepen en draaien.
+              </p>
+              {project.floorplan?.rooms.length ? (
+                <label className="mt-4 block">
+                  <span className="label">In welke ruimte?</span>
+                  <select className="input" value={placeRoom} onChange={(e) => setPlaceRoom(e.target.value)}>
+                    {project.floorplan.rooms.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="mt-4 rounded-xl bg-surface-2 p-3 text-sm text-ink-2">Er is nog geen plattegrond; ik maak er een kamer bij.</p>
+              )}
+              <div className="mt-5 flex gap-2">
+                <button className="btn-primary" onClick={() => placeInPlan(placing)}>
+                  <Icon name="check" size={18} /> Plaatsen
+                </button>
+                <button className="btn-ghost" onClick={() => setPlacing(null)}>
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

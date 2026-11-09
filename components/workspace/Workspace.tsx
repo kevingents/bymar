@@ -149,7 +149,7 @@ export function Workspace() {
       <main className="mx-auto max-w-6xl px-3 py-5 sm:px-6">
         {tab === "beelden" && <ImagesTab project={project} onCover={(cover_path) => update({ cover_path })} onShopping={(shopping) => update({ shopping })} />}
         {tab === "advies" && <AdviceTab project={project} />}
-        {tab === "maken" && <BuildsTab project={project} />}
+        {tab === "maken" && <BuildsTab project={project} onFloorplan={(floorplan) => update({ floorplan })} onGoTo={choose} />}
         {tab === "plattegrond" && <FloorplanTab project={project} onSave={(floorplan) => update({ floorplan })} />}
         {tab === "kleur" && (
           <ColorTab

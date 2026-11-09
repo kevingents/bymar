@@ -16,6 +16,27 @@ export const STORE_KEYS = [
 export const StoreKey = z.enum(STORE_KEYS);
 export type StoreKey = z.infer<typeof StoreKey>;
 
+export const FURNITURE_TYPES = [
+  "bank",
+  "fauteuil",
+  "salontafel",
+  "eettafel",
+  "stoel",
+  "bed",
+  "nachtkastje",
+  "kast",
+  "dressoir",
+  "tv-meubel",
+  "bureau",
+  "vloerkleed",
+  "plant",
+  "lamp",
+  "keukenblok",
+  "overig",
+] as const;
+export const FurnitureType = z.enum(FURNITURE_TYPES);
+export type FurnitureType = z.infer<typeof FurnitureType>;
+
 /* ---------------------------------------------------------------- Bouwplan */
 
 export const BuildGuideSchema = z.object({
@@ -25,6 +46,14 @@ export const BuildGuideSchema = z.object({
   totalTime: z.string().describe("Totale tijd, bv. '2 weekenden' of 'circa 6 uur'"),
   estimatedCost: z.number().describe("Geschatte totale materiaalkosten in euro"),
   dimensions: z.string().describe("Buitenmaten, bv. '180 x 80 x 40 cm (h x b x d)'"),
+  furniture: FurnitureType.describe("Welk soort meubel het is, voor de plattegrond; 'overig' als niets past"),
+  size: z
+    .object({
+      width: z.number().describe('Breedte in cm (van links naar rechts gezien van voren)'),
+      depth: z.number().describe('Diepte in cm'),
+      height: z.number().describe('Hoogte in cm'),
+    })
+    .describe('Buitenmaten in cm, hetzelfde als dimensions'),
   design: z.object({
     description: z.string().describe("Ontwerpkeuzes en constructie in gewone taal"),
     options: z.array(z.string()).describe("Varianten of keuzes die ze kan maken"),
@@ -95,26 +124,7 @@ export type ShoppingItem = ShoppingSuggestion["items"][number] & {
 
 /* ------------------------------------------------------------- Plattegrond */
 
-export const FURNITURE_TYPES = [
-  "bank",
-  "fauteuil",
-  "salontafel",
-  "eettafel",
-  "stoel",
-  "bed",
-  "nachtkastje",
-  "kast",
-  "dressoir",
-  "tv-meubel",
-  "bureau",
-  "vloerkleed",
-  "plant",
-  "lamp",
-  "keukenblok",
-  "overig",
-] as const;
-export const FurnitureType = z.enum(FURNITURE_TYPES);
-export type FurnitureType = z.infer<typeof FurnitureType>;
+
 
 export type Room = { id: string; name: string; x: number; y: number; w: number; h: number; floor: string };
 export type Wall = "n" | "e" | "s" | "w";

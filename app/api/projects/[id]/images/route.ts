@@ -43,7 +43,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const image = await createImage({
       prompt: styleHint ? `${prompt} (${styleHint})` : prompt,
       source,
-      mode: body.kind === "render" ? "render" : undefined,
+      mode: body.kind === "render" ? "render" : body.kind === "build" && source ? "place" : undefined,
     });
     const ext = image.mediaType.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
     const path = `${user.id}/${project.id}/${crypto.randomUUID()}.${ext}`;

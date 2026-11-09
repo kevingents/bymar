@@ -201,3 +201,28 @@ export function floorplanFromDetected(
   }
   return { wallHeight: base?.wallHeight ?? 260, wallColor: base?.wallColor ?? "#F2EEE8", rooms, openings, items: [] };
 }
+
+/** Maten (cm) en soort meubel uit een bouwplan; oudere plannen hebben alleen een tekst met maten. */
+export function buildFurniture(guide: import("./schemas").BuildGuide) {
+  const type = (guide.furniture ?? "kast") as FurnitureType;
+  if (guide.size?.width && guide.size?.depth && guide.size?.height) {
+    return { type, w: Math.round(guide.size.width), d: Math.round(guide.size.depth), h: Math.round(guide.size.height) };
+  }
+  const nums = (guide.dimensions.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => parseFloat(n.replace(",", "."))).slice(0, 3);
+  const mm = /mm/i.test(guide.dimensions);
+  const cm = nums.map((n) => (mm ? n / 10 : n)).sort((a, b) => b - a);
+  const [h = 80, w = 60, d = 40] = cm;
+  return { type, w: Math.round(w), d: Math.round(d), h: Math.round(h) };
+}
+
+/** Kleur in de plattegrond op basis van het materiaal in het bouwplan. */
+export function buildColor(guide: import("./schemas").BuildGuide) {
+  const text = (guide.materials.map((m) => m.name + " " + m.spec).join(" ") + " " + guide.summary).toLowerCase();
+  if (/zwart|antraciet/.test(text)) return "#2F2B28";
+  if (/wit|gelakt wit|white/.test(text)) return "#F1EEE8";
+  if (/noten|walnoot/.test(text)) return "#7A5638";
+  if (/eiken/.test(text)) return "#C8A27A";
+  if (/berken|multiplex|populier/.test(text)) return "#E3CDA8";
+  if (/grenen|vuren|steigerhout/.test(text)) return "#D9B98A";
+  return FURNITURE[guide.furniture ?? "kast"]?.color ?? "#CDB48F";
+}
