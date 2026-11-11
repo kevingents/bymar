@@ -9,6 +9,8 @@ import { useUser } from "@/components/auth/AuthGate";
 import { BeforeAfter } from "@/components/ui/BeforeAfter";
 import { RoomScene } from "@/components/visual/RoomScene";
 import { ShopTheLook } from "./ShopTheLook";
+import { FitDialog, type FitProduct } from "@/components/floorplan/FitDialog";
+import type { Floorplan } from "@/lib/schemas";
 import type { ShoppingItem } from "@/lib/schemas";
 
 const IDEAS = [
@@ -34,11 +36,16 @@ export function ImagesTab({
   project,
   onCover,
   onShopping,
+  onFloorplan,
+  onGoTo,
 }: {
   project: Project;
   onCover: (path: string) => void;
   onShopping: (items: ShoppingItem[]) => void;
+  onFloorplan: (p: Floorplan) => void;
+  onGoTo: (tab: string) => void;
 }) {
+  const [fit, setFit] = useState<FitProduct | null>(null);
   const user = useUser();
   const [images, setImages] = useState<ProjectImage[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -357,6 +364,7 @@ export function ImagesTab({
                   shoppingRef.current = next;
                   onShopping(next);
                 }}
+                onFit={setFit}
               />
             ) : open.source_path && urls[open.source_path] ? (
               <BeforeAfter before={urls[open.source_path]} after={urls[open.path]} />
@@ -371,6 +379,24 @@ export function ImagesTab({
             </p>
           )}
         </div>
+      )}
+      {fit && (
+        <FitDialog
+          product={fit}
+          plan={project.floorplan}
+          onClose={() => setFit(null)}
+          onOpenPlan={() => {
+            setFit(null);
+            setOpen(null);
+            onGoTo("plattegrond");
+          }}
+          onPlace={(p) => {
+            onFloorplan(p);
+            setFit(null);
+            setOpen(null);
+            onGoTo("plattegrond");
+          }}
+        />
       )}
     </div>
   );

@@ -1,7 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { checkLayout } from "@/lib/indeling";
+import { LayoutChecks } from "./LayoutChecks";
 import { postJson, uploadPhoto } from "@/lib/client-api";
 import { signedUrls } from "@/lib/supabase/client";
 import { BeforeAfter } from "@/components/ui/BeforeAfter";
@@ -14,6 +16,7 @@ import {
   centroid,
   edgeLength,
   emptyFloorplan,
+  fitOpenings,
   floorplanFromDetected,
   footprint,
   isPolygon,
@@ -156,7 +159,8 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
   const [measureFor, setMeasureFor] = useState<null | "w" | "h">(null);
 
   // Automatisch opslaan, kort na de laatste wijziging.
-  function change(next: Floorplan, record = true) {
+  function change(raw: Floorplan, record = true) {
+    const next = fitOpenings(raw);
     if (record) history.current = [...history.current.slice(-40), plan];
     setCanUndo(history.current.length > 0);
     setPlan(next);
@@ -325,6 +329,12 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
   }
 
   const area = plan.rooms.reduce((s, r) => s + roomArea(r) / 10000, 0);
+  const checks = useMemo(() => checkLayout(plan), [plan]);
+  const flags = useMemo(() => {
+    const m = new Map<string, "warn" | "tip">();
+    for (const c of checks) for (const id of c.ids) if (m.get(id) !== "warn") m.set(id, c.level);
+    return m;
+  }, [checks]);
   const vpts = room ? roomPoints(room) : [];
 
   return (
@@ -405,7 +415,7 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
                 <Icon name="loader" size={16} /> De plattegrond wordt gelezen: ruimtes, maten, deuren en ramen. Dit duurt ongeveer een minuut.
               </p>
             )}
-            <FloorplanEditor plan={plan} onChange={(p) => change(p)} selection={sel} onSelect={setSel} vertex={vertex} onVertex={setVertex} />
+            <FloorplanEditor plan={plan} onChange={(p) => change(p)} selection={sel} onSelect={setSel} vertex={vertex} onVertex={setVertex} flags={flags} />
             {error && <p className="text-sm text-danger">{error}</p>}
             {aiNote && (
               <p className="flex gap-2 rounded-xl bg-olive-soft p-3 text-sm text-ink">
@@ -427,6 +437,35 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
                     <li>Ruimtes plakken vanzelf tegen elkaar aan.</li>
                     <li>Klaar? Bekijk het in 3D en loop erdoorheen.</li>
                   </ul>
+                </div>
+                {plan.items.length > 0 && (
+                  <div>
+                    <h3 className="mb-2 font-medium">Indeling</h3>
+                    <LayoutChecks checks={checks} onPick={(id) => setSel({ kind: "item", id })} />
+                  </div>
+                )}
+                <div>
+                  <span className="label">Noorden · {Math.round(plan.north ?? 0)}°</span>
+                  <div className="flex items-center gap-3">
+                    <svg viewBox="0 0 40 40" width={40} height={40} className="shrink-0 text-ink-2" aria-hidden>
+                      <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                      <g transform={`rotate(${plan.north ?? 0} 20 20)`}>
+                        <path d="M20 6l4 14h-8z" fill="var(--accent)" />
+                        <path d="M20 34l4-14h-8z" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                      </g>
+                    </svg>
+                    <input
+                      type="range"
+                      min={0}
+                      max={345}
+                      step={15}
+                      value={plan.north ?? 0}
+                      onChange={(e) => change({ ...plan, north: Number(e.target.value) })}
+                      className="w-full accent-[var(--accent)]"
+                      aria-label="Richting van het noorden"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-ink-3">Waar is het noorden op je tekening? Dan klopt het zonlicht in 3D.</p>
                 </div>
                 <Num label="Wandhoogte (cm)" value={plan.wallHeight} min={200} onChange={(v) => change({ ...plan, wallHeight: v })} />
                 <div>
@@ -628,6 +667,7 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
                 <p className="text-xs text-ink-3">
                   Neemt {Math.round(footprint(item).w)} × {Math.round(footprint(item).h)} cm in beslag.
                 </p>
+                <LayoutChecks checks={checks.filter((c) => c.ids.includes(item.id))} empty={false} />
               </>
             )}
 

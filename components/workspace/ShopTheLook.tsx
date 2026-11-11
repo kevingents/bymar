@@ -5,6 +5,7 @@ import { postJson } from "@/lib/client-api";
 import type { ShopLook, ShoppingItem } from "@/lib/schemas";
 import { euro, storeLink } from "@/lib/stores";
 import { Icon } from "@/components/ui/Icon";
+import { guessFurniture } from "@/lib/indeling";
 
 type Item = ShopLook["items"][number];
 
@@ -16,7 +17,9 @@ export function ShopTheLook({
   cached,
   onAdd,
   onCached,
+  onFit,
 }: {
+  onFit?: (p: { name: string; category: string; size: Item["size"] }) => void;
   projectId: string;
   imageId: string;
   url: string;
@@ -57,6 +60,7 @@ export function ShopTheLook({
       store: it.store,
       searchQuery: it.searchQuery,
       note: it.description,
+      size: it.size ?? null,
       bought: false,
     });
     setAdded((a) => ({ ...a, [i]: true }));
@@ -132,6 +136,11 @@ export function ShopTheLook({
                     <Icon name={added[i] ? "check" : "plus"} size={14} /> {added[i] ? "Op lijst" : "Lijst"}
                   </button>
                 </div>
+                {onFit && (it.size || guessFurniture(it.name, it.category)) && (
+                  <button className="ml-8 mt-1 inline-flex items-center gap-1 text-xs text-ink-2 hover:text-ink hover:underline" onClick={() => onFit({ name: it.name, category: it.category, size: it.size })}>
+                    <Icon name="ruler" size={12} /> Past het in mijn kamer?
+                  </button>
+                )}
               </li>
             );
           })}

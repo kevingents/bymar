@@ -155,6 +155,10 @@ export const ShoppingSuggestionSchema = z.object({
       store: StoreKey,
       searchQuery: z.string(),
       note: z.string().describe("Waarom dit past, of waar je op moet letten"),
+      size: z
+        .object({ w: z.number().describe("Breedte in cm"), d: z.number().describe("Diepte in cm"), h: z.number().describe("Hoogte in cm") })
+        .nullable()
+        .describe("Alleen bij meubels en vloerkleden: maten van een gangbaar vergelijkbaar product. Anders null."),
     }),
   ),
 });
@@ -171,7 +175,9 @@ export type ShoppingItem = ShoppingSuggestion["items"][number] & {
 
 export type Pt2 = { x: number; y: number };
 /** x/y/w/h is de omhullende rechthoek. Met points is de ruimte een vrije veelhoek (met de klok mee, in cm). */
-export type Room = { id: string; name: string; x: number; y: number; w: number; h: number; floor: string; points?: Pt2[] };
+/** Schuin dak boven een wand: knieschot (cm hoog) en hellingshoek (graden). */
+export type Slope = { edge: number; knee: number; angle: number };
+export type Room = { id: string; name: string; x: number; y: number; w: number; h: number; floor: string; points?: Pt2[]; slopes?: Slope[] };
 export type Wall = "n" | "e" | "s" | "w";
 export type Opening = {
   id: string;
@@ -203,6 +209,8 @@ export type Floorplan = {
   rooms: Room[];
   openings: Opening[];
   items: FloorItem[];
+  /** Richting van het noorden in graden, met de klok mee vanaf boven op de tekening. */
+  north?: number;
 };
 
 /** Wat Claude teruggeeft als het een kamer inricht (posities in cm, linksboven = 0,0). */
@@ -235,6 +243,10 @@ export const ShopLookSchema = z.object({
       estPrice: z.number().describe("Realistische prijs in euro voor een vergelijkbaar product"),
       store: StoreKey,
       searchQuery: z.string().describe("Zoekterm waarmee je iets vergelijkbaars vindt bij die winkel"),
+      size: z
+        .object({ w: z.number().describe("Breedte in cm"), d: z.number().describe("Diepte in cm"), h: z.number().describe("Hoogte in cm") })
+        .nullable()
+        .describe("Alleen bij meubels en vloerkleden: maten van een gangbaar vergelijkbaar product. Anders null."),
       x: z.number().describe("Middelpunt van het object, horizontaal in procent van de beeldbreedte (0-100)"),
       y: z.number().describe("Middelpunt van het object, verticaal in procent van de beeldhoogte (0-100)"),
     }),

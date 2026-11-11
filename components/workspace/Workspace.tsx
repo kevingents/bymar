@@ -150,7 +150,7 @@ export function Workspace() {
       </header>
 
       <main className="mx-auto max-w-6xl px-3 py-5 sm:px-6">
-        {tab === "beelden" && <ImagesTab project={project} onCover={(cover_path) => update({ cover_path })} onShopping={(shopping) => update({ shopping })} />}
+        {tab === "beelden" && <ImagesTab project={project} onCover={(cover_path) => update({ cover_path })} onShopping={(shopping) => update({ shopping })} onFloorplan={(floorplan) => update({ floorplan })} onGoTo={choose} />}
         {tab === "advies" && <AdviceTab project={project} />}
         {tab === "maken" && <BuildsTab project={project} onFloorplan={(floorplan) => update({ floorplan })} onGoTo={choose} />}
         {tab === "plattegrond" && <FloorplanTab project={project} onSave={(floorplan) => update({ floorplan })} />}
@@ -162,7 +162,13 @@ export function Workspace() {
           />
         )}
         {tab === "moodboard" && <MoodboardTab project={project} />}
-        {tab === "inkoop" && <ShoppingTab project={project} onChange={(shopping) => update({ shopping })} onReplace={(shopping) => setProject({ ...project, shopping })} />}
+        {tab === "inkoop" && <ShoppingTab
+            project={project}
+            onChange={(shopping) => update({ shopping })}
+            onReplace={(shopping) => setProject({ ...project, shopping })}
+            onFloorplan={(floorplan) => update({ floorplan })}
+            onGoTo={choose}
+          />}
         {tab === "delen" && <ShareTab project={project} onChange={update} />}
       </main>
 

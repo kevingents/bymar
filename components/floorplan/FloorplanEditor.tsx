@@ -56,7 +56,13 @@ export function FloorplanEditor({
   vertex = null,
   onVertex,
   readOnly = false,
+  flags,
+  highlight,
 }: {
+  /** Meubels met een melding uit de indelingscontrole. */
+  flags?: Map<string, "warn" | "tip">;
+  /** Meubel dat extra in beeld moet (bijv. bij "Past het?"). */
+  highlight?: string;
   plan: Floorplan;
   onChange?: (p: Floorplan) => void;
   selection: Selection;
@@ -279,6 +285,23 @@ export function FloorplanEditor({
                     {...stroke}
                   />
                 )}
+                {(flags?.get(it.id) || highlight === it.id) &&
+                  (() => {
+                    const color = highlight === it.id ? "var(--olive)" : flags?.get(it.id) === "warn" ? "var(--danger)" : "#C08A2E";
+                    const pad = unit * 4;
+                    const common = {
+                      fill: "none",
+                      stroke: color,
+                      strokeWidth: unit * 2,
+                      strokeDasharray: `${unit * 5} ${unit * 3}`,
+                      pointerEvents: "none" as const,
+                    };
+                    return round ? (
+                      <ellipse cx={cx} cy={cy} rx={it.w / 2 + pad} ry={it.d / 2 + pad} {...common} />
+                    ) : (
+                      <rect x={cx - it.w / 2 - pad} y={cy - it.d / 2 - pad} width={it.w + pad * 2} height={it.d + pad * 2} rx={6} {...common} />
+                    );
+                  })()}
                 {/* lijn aan de achterkant, zodat je ziet hoe het meubel staat */}
                 {!round && it.type !== "vloerkleed" && (
                   <line

@@ -430,3 +430,21 @@ export function buildColor(guide: import("./schemas").BuildGuide) {
   if (/grenen|vuren|steigerhout/.test(text)) return "#D9B98A";
   return FURNITURE[guide.furniture ?? "kast"]?.color ?? "#CDB48F";
 }
+
+/** Houdt deuren en ramen binnen hun wand, ook nadat een hoekpunt of maat is veranderd. */
+export function fitOpenings(plan: Floorplan): Floorplan {
+  let changed = false;
+  const openings = plan.openings.map((o) => {
+    const r = plan.rooms.find((x) => x.id === o.roomId);
+    if (!r) return o;
+    let edge = o.edge;
+    if (edge !== undefined && isPolygon(r) && edge >= roomPoints(r).length) edge = roomPoints(r).length - 1;
+    const L = openingWallLength({ ...o, edge }, r);
+    const width = Math.max(Math.min(40, L), Math.min(o.width, L - 10));
+    const offset = Math.max(0, Math.min(o.offset, L - width));
+    if (edge === o.edge && width === o.width && offset === o.offset) return o;
+    changed = true;
+    return { ...o, edge, width: Math.round(width), offset: Math.round(offset) };
+  });
+  return changed ? { ...plan, openings } : plan;
+}

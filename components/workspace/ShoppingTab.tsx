@@ -6,16 +6,24 @@ import { STORE_KEYS, type ShoppingItem, type StoreKey } from "@/lib/schemas";
 import type { Project } from "@/lib/types";
 import { STORES, euro, storeLink } from "@/lib/stores";
 import { Icon } from "@/components/ui/Icon";
+import { FitDialog } from "@/components/floorplan/FitDialog";
+import { guessFurniture } from "@/lib/indeling";
+import type { Floorplan } from "@/lib/schemas";
 
 export function ShoppingTab({
   project,
   onChange,
   onReplace,
+  onFloorplan,
+  onGoTo,
 }: {
   project: Project;
   onChange: (items: ShoppingItem[]) => void;
   onReplace: (items: ShoppingItem[]) => void;
+  onFloorplan: (p: Floorplan) => void;
+  onGoTo: (tab: string) => void;
 }) {
+  const [fit, setFit] = useState<ShoppingItem | null>(null);
   const items = project.shopping ?? [];
   const [wish, setWish] = useState("");
   const [busy, setBusy] = useState(false);
@@ -52,6 +60,7 @@ export function ShoppingTab({
         store: draft.store,
         searchQuery: draft.name.trim(),
         note: "",
+        size: null,
         bought: false,
       },
     ]);
@@ -180,6 +189,11 @@ export function ShoppingTab({
                     <a href={link.href} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-sm text-accent hover:underline">
                       Zoek bij {link.label} <Icon name="external" size={13} />
                     </a>
+                    {(i.size || guessFurniture(i.name, i.category)) && (
+                      <button className="ml-3 mt-1 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink hover:underline" onClick={() => setFit(i)}>
+                        <Icon name="ruler" size={13} /> Past het?
+                      </button>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-sm tabular-nums">{euro(i.estPrice * i.quantity)}</span>
@@ -198,6 +212,22 @@ export function ShoppingTab({
         </section>
       ))}
       <p className="px-1 text-xs text-ink-3">Prijzen zijn schattingen; controleer de actuele prijs in de winkel.</p>
+      {fit && (
+        <FitDialog
+          product={fit}
+          plan={project.floorplan}
+          onClose={() => setFit(null)}
+          onOpenPlan={() => {
+            setFit(null);
+            onGoTo("plattegrond");
+          }}
+          onPlace={(p) => {
+            onFloorplan(p);
+            setFit(null);
+            onGoTo("plattegrond");
+          }}
+        />
+      )}
     </div>
   );
 }
