@@ -1,5 +1,7 @@
 import type { BuildGuide, Floorplan, Palette, ShoppingItem } from "./schemas";
 
+export type BudgetItem = { id: string; name: string; amount: number; paid: boolean };
+
 export type SavedPalette = Palette & { id: string; source_path: string | null; created_at: string };
 
 export type Project = {
@@ -14,6 +16,8 @@ export type Project = {
   floorplan: Floorplan | null;
   shopping: ShoppingItem[];
   palettes: SavedPalette[];
+  /** Eigen posten op de begroting, naast inkooplijst en bouwplannen. */
+  budget_items?: BudgetItem[];
   share_enabled: boolean;
   share_token: string | null;
   invite_token: string | null;

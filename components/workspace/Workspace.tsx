@@ -17,6 +17,7 @@ import { ShoppingTab } from "./ShoppingTab";
 import { ShareTab } from "./ShareTab";
 import { ColorTab } from "./ColorTab";
 import { MoodboardTab } from "./MoodboardTab";
+import { BudgetTab } from "./BudgetTab";
 import { FloorplanTab } from "@/components/floorplan/FloorplanTab";
 
 const TABS: { key: string; label: string; icon: IconName }[] = [
@@ -27,6 +28,7 @@ const TABS: { key: string; label: string; icon: IconName }[] = [
   { key: "kleur", label: "Kleur & verf", icon: "palette" },
   { key: "moodboard", label: "Moodboard", icon: "grid" },
   { key: "inkoop", label: "Inkooplijst", icon: "cart" },
+  { key: "budget", label: "Budget", icon: "euro" },
   { key: "delen", label: "Delen", icon: "share" },
 ];
 
@@ -169,6 +171,15 @@ export function Workspace() {
             onFloorplan={(floorplan) => update({ floorplan })}
             onGoTo={choose}
           />}
+        {tab === "budget" && (
+          <BudgetTab
+            project={project}
+            onShopping={(shopping) => update({ shopping })}
+            onItems={(budget_items) => update({ budget_items })}
+            onBudget={(budget) => update({ budget })}
+            onGoTo={choose}
+          />
+        )}
         {tab === "delen" && <ShareTab project={project} onChange={update} />}
       </main>
 
