@@ -291,11 +291,11 @@ export function Sheet1({ project, plan }: { project: Project; plan: Floorplan })
       <div className="flex items-end justify-between border-t border-[#2a2520] pt-2 text-xs">
         {/* schaalstok: 0-1-2 m */}
         <div>
-          <svg width={`${mm(200) + 8}mm`} height="8mm" viewBox={`0 0 ${mm(200) + 8} 8`}>
-            <rect x={1} y={1} width={mm(100)} height={1.6} fill="#2a2520" />
-            <rect x={1 + mm(100)} y={1} width={mm(100)} height={1.6} fill="none" stroke="#2a2520" strokeWidth={0.25} />
+          <svg width={`${mm(200) + 12}mm`} height="8mm" viewBox={`0 0 ${mm(200) + 12} 8`}>
+            <rect x={5} y={1} width={mm(100)} height={1.6} fill="#2a2520" />
+            <rect x={5 + mm(100)} y={1} width={mm(100)} height={1.6} fill="none" stroke="#2a2520" strokeWidth={0.25} />
             {[0, 1, 2].map((m) => (
-              <text key={m} x={1 + mm(100 * m)} y={6.5} fontSize={2.4} textAnchor="middle" fill="#2a2520">
+              <text key={m} x={5 + mm(100 * m)} y={6.5} fontSize={2.4} textAnchor="middle" fill="#2a2520">
                 {m} m
               </text>
             ))}

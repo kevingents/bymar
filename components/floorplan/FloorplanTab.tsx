@@ -46,6 +46,8 @@ const Walkthrough3D = dynamic(() => import("./Walkthrough3D"), {
   ),
 });
 
+const ArView = dynamic(() => import("./ArView"), { ssr: false });
+
 const WALL_COLORS = ["#F2EEE8", "#FFFFFF", "#E8DFD3", "#D9CBB8", "#C9D1C0", "#B7C4CC", "#E7C9B5", "#8C9A7E"];
 
 const SHAPES: { key: "rect" | "l" | "corner" | "bay" | "free"; label: string; d: string }[] = [
@@ -161,6 +163,7 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
   }
   const [canUndo, setCanUndo] = useState(false);
   const [measureFor, setMeasureFor] = useState<null | "w" | "h">(null);
+  const [arItem, setArItem] = useState<FloorItem | null>(null);
 
   // Automatisch opslaan, kort na de laatste wijziging.
   function change(raw: Floorplan, record = true) {
@@ -717,6 +720,11 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
                   Neemt {Math.round(footprint(item).w)} × {Math.round(footprint(item).h)} cm in beslag.
                 </p>
                 <LayoutChecks checks={checks.filter((c) => c.ids.includes(item.id))} empty={false} />
+                {item.type !== "vloerkleed" && (
+                  <button className="btn-outline w-full" onClick={() => setArItem(item)}>
+                    <Icon name="camera" size={16} /> Bekijk in je kamer (AR)
+                  </button>
+                )}
               </>
             )}
 
@@ -743,6 +751,8 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
           <p className="pt-2 text-center text-sm text-white/70">Sleep de lijn. De foto staat ook bij Beelden.</p>
         </div>
       )}
+
+      {arItem && <ArView item={arItem} onClose={() => setArItem(null)} />}
 
       {measureFor && (
         <CameraTool

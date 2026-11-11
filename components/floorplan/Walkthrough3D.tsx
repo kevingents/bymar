@@ -168,7 +168,7 @@ function RoundShape({ it }: { it: FloorItem }) {
   );
 }
 
-function FurnitureShape({ it }: { it: FloorItem }) {
+export function FurnitureShape({ it }: { it: FloorItem }) {
   if (it.shape === "round") return <RoundShape it={it} />;
   const w = M(it.w);
   const d = M(it.d);
@@ -594,7 +594,7 @@ export default function Walkthrough3D({
       </div>
 
       {sunOn && (
-        <div className="absolute left-3 top-14 w-64 rounded-2xl bg-surface/95 p-3 text-sm shadow-sm backdrop-blur">
+        <div className="absolute left-3 top-14 w-56 rounded-2xl bg-surface/95 p-2.5 text-xs shadow-sm backdrop-blur sm:w-64 sm:p-3 sm:text-sm">
           <p className="font-medium">{sunLabel(sun.month, sun.hour)}</p>
           <p className="text-xs text-ink-3">
             {sunInfo.altitude > 0
