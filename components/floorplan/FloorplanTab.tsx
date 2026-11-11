@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { checkLayout } from "@/lib/indeling";
 import { LayoutChecks } from "./LayoutChecks";
@@ -401,6 +402,11 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
               <button className="btn-ghost shrink-0 px-3 py-2" onClick={undo} disabled={!canUndo} aria-label="Ongedaan maken">
                 <Icon name="rotate" size={16} className="-scale-x-100" /> Terug
               </button>
+              {plan.rooms.length > 0 && (
+                <Link href={`/projecten/${project.id}/afdrukken`} className="btn-ghost shrink-0 px-3 py-2">
+                  <Icon name="download" size={16} /> Pdf op schaal
+                </Link>
+              )}
             </div>
 
             {catalog && (
