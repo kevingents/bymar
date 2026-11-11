@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { postJson, uploadPhoto } from "@/lib/client-api";
-import { buildColor, buildFurniture, emptyFloorplan, uid } from "@/lib/floorplan";
+import { buildColor, buildFurniture, centroid, emptyFloorplan, isPolygon, roomPoints, uid } from "@/lib/floorplan";
 import type { Floorplan } from "@/lib/schemas";
 import { useUser } from "@/components/auth/AuthGate";
 import { signedUrls, supabase } from "@/lib/supabase/client";
@@ -204,9 +204,9 @@ export function BuildsTab({
       h: f.h,
       rotation: 0,
       color: buildColor(b.data),
-      // tegen de bovenwand, in het midden
-      x: Math.round(room.x + room.w / 2 - w / 2),
-      y: Math.round(room.y + 8),
+      // tegen de bovenwand, in het midden (vrije vorm: in het midden van de ruimte)
+      x: isPolygon(room) ? Math.round(centroid(roomPoints(room)).x - w / 2) : Math.round(room.x + room.w / 2 - w / 2),
+      y: isPolygon(room) ? Math.round(centroid(roomPoints(room)).y - d / 2) : Math.round(room.y + 8),
     };
     onFloorplan({ ...plan, items: [...plan.items, item] });
     setPlaced(room.name);

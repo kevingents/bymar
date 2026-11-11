@@ -169,13 +169,17 @@ export type ShoppingItem = ShoppingSuggestion["items"][number] & {
 
 
 
-export type Room = { id: string; name: string; x: number; y: number; w: number; h: number; floor: string };
+export type Pt2 = { x: number; y: number };
+/** x/y/w/h is de omhullende rechthoek. Met points is de ruimte een vrije veelhoek (met de klok mee, in cm). */
+export type Room = { id: string; name: string; x: number; y: number; w: number; h: number; floor: string; points?: Pt2[] };
 export type Wall = "n" | "e" | "s" | "w";
 export type Opening = {
   id: string;
   type: "door" | "window";
   roomId: string;
   wall: Wall;
+  /** Bij een veelhoek-ruimte: index van de wand (hoekpunt i naar i+1); offset telt vanaf hoekpunt i. */
+  edge?: number;
   offset: number;
   width: number;
 };
@@ -190,6 +194,8 @@ export type FloorItem = {
   h: number;
   rotation: number;
   color: string;
+  /** Rond of ovaal in plaats van rechthoekig. */
+  shape?: "rect" | "round";
 };
 export type Floorplan = {
   wallHeight: number;

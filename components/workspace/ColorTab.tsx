@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { postJson, uploadPhoto } from "@/lib/client-api";
-import { DOOR_HEIGHT, WINDOW_HEIGHT } from "@/lib/floorplan";
+import { DOOR_HEIGHT, WINDOW_HEIGHT, isPolygon, roomArea, roomPerimeter } from "@/lib/floorplan";
 import type { Floorplan } from "@/lib/schemas";
 import { euro, storeLink } from "@/lib/stores";
 import type { Project, SavedPalette } from "@/lib/types";
@@ -19,7 +19,7 @@ function inkOn(hex: string) {
 function wallArea(plan: Floorplan, roomId: string, height: number) {
   const r = plan.rooms.find((x) => x.id === roomId);
   if (!r) return 0;
-  const walls = (2 * (r.w + r.h) * height) / 10000;
+  const walls = (roomPerimeter(r) * height) / 10000;
   const holes = plan.openings
     .filter((o) => o.roomId === r.id)
     .reduce((s, o) => s + (o.width * (o.type === "door" ? DOOR_HEIGHT : WINDOW_HEIGHT)) / 10000, 0);
@@ -56,7 +56,7 @@ export function ColorTab({
     const room = plan.rooms.find((r) => r.id === roomId);
     if (!room) return null;
     const walls = wallArea(plan, roomId, height);
-    const top = ceiling ? (room.w * room.h) / 10000 : 0;
+    const top = ceiling ? roomArea(room) / 10000 : 0;
     const area = walls + top;
     const liters = (area * layers) / Math.max(1, coverage);
     const cans25 = Math.ceil(liters / 2.5);
@@ -201,7 +201,7 @@ export function ColorTab({
               <select className="input" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
                 {plan.rooms.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.name} ({r.w / 100} × {r.h / 100} m)
+                    {r.name} ({isPolygon(r) ? `${(roomArea(r) / 10000).toLocaleString("nl-NL", { maximumFractionDigits: 1 })} m²` : `${r.w / 100} × ${r.h / 100} m`})
                   </option>
                 ))}
               </select>

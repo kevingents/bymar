@@ -11,8 +11,10 @@ import {
   WINDOW_HEIGHT,
   WINDOW_SILL,
   bounds,
+  centroid,
   floorColor,
   footprint,
+  roomPoints,
   wallSegments,
   type WallSegment,
 } from "@/lib/floorplan";
@@ -25,12 +27,15 @@ const EYE = 1.6;
 /* ------------------------------------------------------------------ Wanden */
 
 function WallPiece({ s, height, color }: { s: WallSegment; height: number; color: string }) {
-  const len = M(s.b - s.a);
+  const dx = s.b.x - s.a.x;
+  const dy = s.b.y - s.a.y;
+  const len = M(Math.hypot(dx, dy));
   const t = M(WALL_THICKNESS);
-  const mid = M((s.a + s.b) / 2);
-  const pos = (y: number): [number, number, number] => (s.horizontal ? [mid, y, M(s.fixed)] : [M(s.fixed), y, mid]);
-  const size = (h: number): [number, number, number] => (s.horizontal ? [len + (s.kind === "full" ? t : 0), h, t] : [t, h, len + (s.kind === "full" ? t : 0)]);
+  const mid: [number, number] = [M((s.a.x + s.b.x) / 2), M((s.a.y + s.b.y) / 2)];
+  const angle = -Math.atan2(dy, dx); // plan-y is 3D-z
   const H = M(height);
+  // dichte stukken iets langer zodat hoeken (ook schuine) dicht zijn
+  const extra = s.kind === "full" ? t : 0;
 
   const pieces: { y: number; h: number }[] = [];
   if (s.kind === "full") pieces.push({ y: H / 2, h: H });
@@ -40,30 +45,38 @@ function WallPiece({ s, height, color }: { s: WallSegment; height: number; color
     const top = M(WINDOW_SILL + WINDOW_HEIGHT);
     pieces.push({ y: (top + H) / 2, h: H - top });
   }
+  const glassTop = Math.min(H, M(WINDOW_SILL + WINDOW_HEIGHT));
 
   return (
-    <group>
+    <group position={[mid[0], 0, mid[1]]} rotation={[0, angle, 0]}>
       {pieces
         .filter((p) => p.h > 0.001)
         .map((p, i) => (
-          <mesh key={i} position={pos(p.y)} castShadow receiveShadow>
-            <boxGeometry args={size(p.h)} />
+          <mesh key={i} position={[0, p.y, 0]} castShadow receiveShadow>
+            <boxGeometry args={[len + extra, p.h, t]} />
             <meshStandardMaterial color={color} roughness={0.9} />
           </mesh>
         ))}
       {s.kind === "window" && H > M(WINDOW_SILL) && (
-        <mesh position={pos((M(WINDOW_SILL) + Math.min(H, M(WINDOW_SILL + WINDOW_HEIGHT))) / 2)}>
-          <boxGeometry
-            args={
-              s.horizontal
-                ? [len, Math.min(H, M(WINDOW_SILL + WINDOW_HEIGHT)) - M(WINDOW_SILL), 0.02]
-                : [0.02, Math.min(H, M(WINDOW_SILL + WINDOW_HEIGHT)) - M(WINDOW_SILL), len]
-            }
-          />
+        <mesh position={[0, (M(WINDOW_SILL) + glassTop) / 2, 0]}>
+          <boxGeometry args={[len, glassTop - M(WINDOW_SILL), 0.02]} />
           <meshPhysicalMaterial color="#cfe3ee" transparent opacity={0.25} roughness={0.05} />
         </mesh>
       )}
     </group>
+  );
+}
+
+/** Vloer of plafond in de vorm van de ruimte (ook L-vorm, schuine hoek, erker). */
+function RoomSurface({ points, y, color, ceiling = false }: { points: { x: number; y: number }[]; y: number; color: string; ceiling?: boolean }) {
+  const geometry = useMemo(() => {
+    const shape = new THREE.Shape(points.map((p) => new THREE.Vector2(M(p.x), -M(p.y))));
+    return new THREE.ShapeGeometry(shape);
+  }, [points]);
+  return (
+    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} receiveShadow={!ceiling}>
+      <meshStandardMaterial color={color} roughness={ceiling ? 1 : 0.75} side={THREE.DoubleSide} />
+    </mesh>
   );
 }
 
@@ -83,7 +96,46 @@ function shade(hex: string, f: number) {
 }
 
 /** Eenvoudige, herkenbare vormen per meubeltype. Lokaal: breedte langs x, diepte langs z, achterkant op -z. */
+function RoundShape({ it }: { it: FloorItem }) {
+  const w = M(it.w);
+  const d = M(it.d);
+  const h = Math.max(M(it.h), 0.01);
+  const c = it.color;
+  const dark = shade(c, 0.7);
+  // ovaal: cilinder met straal 0,5 en geschaald naar breedte en diepte
+  if (it.type === "vloerkleed") {
+    return (
+      <mesh position={[0, 0.006, 0]} scale={[w, 1, d]} receiveShadow>
+        <cylinderGeometry args={[0.5, 0.5, 0.012, 48]} />
+        <meshStandardMaterial color={c} roughness={1} />
+      </mesh>
+    );
+  }
+  if (/tafel|bureau/.test(it.type)) {
+    const top = 0.035;
+    return (
+      <group>
+        <mesh position={[0, h - top / 2, 0]} scale={[w, 1, d]} castShadow receiveShadow>
+          <cylinderGeometry args={[0.5, 0.5, top, 48]} />
+          <meshStandardMaterial color={c} roughness={0.6} />
+        </mesh>
+        <mesh position={[0, (h - top) / 2, 0]} castShadow>
+          <cylinderGeometry args={[0.05, 0.12, h - top, 20]} />
+          <meshStandardMaterial color={dark} roughness={0.7} />
+        </mesh>
+      </group>
+    );
+  }
+  return (
+    <mesh position={[0, h / 2, 0]} scale={[w, 1, d]} castShadow receiveShadow>
+      <cylinderGeometry args={[0.5, 0.5, h, 40]} />
+      <meshStandardMaterial color={c} roughness={0.8} />
+    </mesh>
+  );
+}
+
 function FurnitureShape({ it }: { it: FloorItem }) {
+  if (it.shape === "round") return <RoundShape it={it} />;
   const w = M(it.w);
   const d = M(it.d);
   const h = Math.max(M(it.h), 0.01);
@@ -219,15 +271,16 @@ function Furniture({ it }: { it: FloorItem }) {
 type Keys = { f: boolean; b: boolean; l: boolean; r: boolean };
 
 function blocked(x: number, z: number, walls: WallSegment[]) {
-  const R = 0.22;
+  const R = 0.22 + M(WALL_THICKNESS) / 2;
   for (const s of walls) {
     if (s.kind === "door") continue;
-    const a = M(s.a) - R;
-    const b = M(s.b) + R;
-    const f = M(s.fixed);
-    if (s.horizontal) {
-      if (x > a && x < b && Math.abs(z - f) < R + M(WALL_THICKNESS) / 2) return true;
-    } else if (z > a && z < b && Math.abs(x - f) < R + M(WALL_THICKNESS) / 2) return true;
+    const ax = M(s.a.x);
+    const az = M(s.a.y);
+    const vx = M(s.b.x) - ax;
+    const vz = M(s.b.y) - az;
+    const L2 = vx * vx + vz * vz || 1;
+    const t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / L2));
+    if (Math.hypot(x - (ax + vx * t), z - (az + vz * t)) < R) return true;
   }
   return false;
 }
@@ -296,10 +349,11 @@ function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk" |
   const center: [number, number, number] = [M((b.minX + b.maxX) / 2), 0, M((b.minY + b.maxY) / 2)];
   const span = Math.max(M(b.maxX - b.minX), M(b.maxY - b.minY), 3);
   const firstRoom = plan.rooms[0];
-  const start = useMemo<[number, number]>(
-    () => (firstRoom ? [M(firstRoom.x + firstRoom.w / 2), M(firstRoom.y + firstRoom.h * 0.8)] : [0, 0]),
-    [firstRoom],
-  );
+  const start = useMemo<[number, number]>(() => {
+    if (!firstRoom) return [0, 0];
+    const c = centroid(roomPoints(firstRoom));
+    return [M(c.x), M(c.y)];
+  }, [firstRoom]);
 
   return (
     <>
@@ -325,21 +379,17 @@ function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk" |
         </mesh>
       )}
 
-      {plan.rooms.map((r) => (
-        <group key={r.id}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[M(r.x + r.w / 2), 0, M(r.y + r.h / 2)]} receiveShadow>
-            <planeGeometry args={[M(r.w), M(r.h)]} />
-            <meshStandardMaterial color={floorColor(r.floor)} roughness={0.75} />
-          </mesh>
-          {mode === "walk" && (
-            <mesh rotation={[Math.PI / 2, 0, 0]} position={[M(r.x + r.w / 2), M(plan.wallHeight), M(r.y + r.h / 2)]}>
-              <planeGeometry args={[M(r.w), M(r.h)]} />
-              <meshStandardMaterial color="#fbfaf7" roughness={1} />
-            </mesh>
-          )}
-          {mode === "walk" && <pointLight position={[M(r.x + r.w / 2), M(plan.wallHeight) - 0.3, M(r.y + r.h / 2)]} intensity={2.5} distance={8} color="#fff1dc" />}
-        </group>
-      ))}
+      {plan.rooms.map((r) => {
+        const pts = roomPoints(r);
+        const c = centroid(pts);
+        return (
+          <group key={r.id}>
+            <RoomSurface points={pts} y={0} color={floorColor(r.floor)} />
+            {mode === "walk" && <RoomSurface points={pts} y={M(plan.wallHeight)} color="#fbfaf7" ceiling />}
+            {mode === "walk" && <pointLight position={[M(c.x), M(plan.wallHeight) - 0.3, M(c.y)]} intensity={2.5} distance={8} color="#fff1dc" />}
+          </group>
+        );
+      })}
 
       {walls.map((s, i) => (
         // In de showroom zijn de muren laag (poppenhuis), zodat je de inrichting goed ziet.
