@@ -6,6 +6,7 @@ import {
   FURNITURE,
   bounds,
   centroid,
+  edgeNormal,
   floorColor,
   footprint,
   isPolygon,
@@ -14,6 +15,7 @@ import {
   pointInPolygon,
   roomEdges,
   roomPoints,
+  slopeDistanceAt,
   withPoints,
   type P,
 } from "@/lib/floorplan";
@@ -339,6 +341,40 @@ export function FloorplanEditor({
           return (
             <g key={`w-${r.id}`} pointerEvents="none">
               <path d={pathOf(pts)} fill="none" stroke={sel ? "var(--accent)" : "var(--ink)"} strokeWidth={10} strokeLinejoin="miter" />
+              {/* schuin dak: gearceerd tot waar je kunt staan (1,80 m) */}
+              {(r.slopes ?? []).map((sl) => {
+                const e = roomEdges(r)[sl.edge];
+                if (!e) return null;
+                const n = edgeNormal(r, sl.edge);
+                const d = slopeDistanceAt(sl, plan.wallHeight, 180);
+                if (d < 1) return null;
+                const a2 = { x: e.a.x + n.x * d, y: e.a.y + n.y * d };
+                const b2 = { x: e.b.x + n.x * d, y: e.b.y + n.y * d };
+                const mid = { x: (a2.x + b2.x) / 2 + n.x * unit * 10, y: (a2.y + b2.y) / 2 + n.y * unit * 10 };
+                let ang = (Math.atan2(e.b.y - e.a.y, e.b.x - e.a.x) * 180) / Math.PI;
+                if (ang > 90) ang -= 180;
+                if (ang < -90) ang += 180;
+                return (
+                  <g key={`sl-${sl.edge}`}>
+                    <path d={pathOf([e.a, e.b, b2, a2])} fill="var(--ink)" fillOpacity={0.08} />
+                    <line x1={a2.x} y1={a2.y} x2={b2.x} y2={b2.y} stroke="var(--ink)" strokeOpacity={0.55} strokeWidth={unit * 1.2} strokeDasharray={`${unit * 6} ${unit * 4}`} />
+                    <text
+                      x={mid.x}
+                      y={mid.y}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize={unit * 10}
+                      fill="var(--ink-2)"
+                      stroke="var(--surface)"
+                      strokeWidth={unit * 3}
+                      paintOrder="stroke"
+                      transform={`rotate(${ang} ${mid.x} ${mid.y})`}
+                    >
+                      schuin dak · vanaf hier 1,80 m
+                    </text>
+                  </g>
+                );
+              })}
               {/* naam en maten, met een lichte rand zodat het boven meubels leesbaar blijft */}
               <text
                 x={label.x}

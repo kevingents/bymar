@@ -55,6 +55,9 @@ const SHAPES: { key: "rect" | "l" | "corner" | "bay" | "free"; label: string; d:
   { key: "free", label: "Vrij", d: "M5 5l13 2 1 11-9 2-6-6z" },
 ];
 
+const RECT_EDGES = ["Boven", "Rechts", "Onder", "Links"];
+const edgeName = (r: Room, i: number) => (isPolygon(r) ? `Wand ${i + 1}` : RECT_EDGES[i] ?? `Wand ${i + 1}`);
+
 /** Meubels die je ook rond of ovaal kunt maken. */
 const CAN_BE_ROUND = new Set(["eettafel", "salontafel", "nachtkastje", "bureau", "vloerkleed", "fauteuil", "overig"]);
 
@@ -525,6 +528,46 @@ export function FloorplanTab({ project, onSave }: { project: Project; onSave: (p
                   <button className="btn-ghost px-2 py-1.5 text-xs" onClick={() => setMeasureFor("h")}>
                     <Icon name="camera" size={14} /> Meet diepte
                   </button>
+                </div>
+                <div>
+                  <span className="label">Schuin dak</span>
+                  <div className="flex flex-wrap gap-1">
+                    {roomEdges(room).map((e) => {
+                      const on = !!room.slopes?.some((s) => s.edge === e.i);
+                      return (
+                        <button
+                          key={e.i}
+                          className="chip px-2.5 py-1 text-xs"
+                          data-on={on}
+                          onClick={() =>
+                            patchRoom({
+                              slopes: on ? room.slopes!.filter((s) => s.edge !== e.i) : [...(room.slopes ?? []), { edge: e.i, knee: 60, angle: 45 }],
+                            })
+                          }
+                        >
+                          {edgeName(room, e.i)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {(room.slopes ?? []).map((sl) => (
+                    <div key={sl.edge} className="mt-2 grid grid-cols-2 gap-2">
+                      <Num
+                        label={`Knieschot ${edgeName(room, sl.edge).toLowerCase()} (cm)`}
+                        value={sl.knee}
+                        min={0}
+                        onChange={(knee) => patchRoom({ slopes: room.slopes!.map((s) => (s.edge === sl.edge ? { ...s, knee: Math.min(knee, plan.wallHeight) } : s)) })}
+                      />
+                      <Num
+                        label="Helling (graden)"
+                        value={sl.angle}
+                        min={15}
+                        step={1}
+                        onChange={(angle) => patchRoom({ slopes: room.slopes!.map((s) => (s.edge === sl.edge ? { ...s, angle: Math.min(75, angle) } : s)) })}
+                      />
+                    </div>
+                  ))}
+                  <p className="mt-1 text-xs text-ink-3">Zolder of dakkamer? Kies de wand onder het schuine dak. Het knieschot is de lage wand; de meeste daken hellen 40 tot 50 graden.</p>
                 </div>
                 {isPolygon(room) && (
                   <div className="space-y-2 rounded-xl bg-surface-2 p-3">

@@ -1,5 +1,5 @@
 import type { FloorItem, Floorplan, FurnitureType, Room } from "./schemas";
-import { FURNITURE, centroid, footprint, openingGeom, pointInPolygon, roomEdges, roomOf, roomPoints, uid, type P } from "./floorplan";
+import { FURNITURE, centroid, edgeNormal, footprint, openingGeom, pointInPolygon, roomEdges, roomOf, roomPoints, uid, type P } from "./floorplan";
 
 /* ------------------------------------------------------------------ Geometrie */
 
@@ -215,6 +215,24 @@ export function checkLayout(plan: Floorplan): Check[] {
       if ([a.type, b.type].every((t) => t === "bank" || t === "fauteuil")) continue;
       const d = polyDistance(poly.get(a.id)!, poly.get(b.id)!);
       if (d > 3 && d < 60) out.push({ level: "tip", text: `Tussen ${a.name} en ${b.name} is maar ${cm(d)}; 70 cm loopt prettig.`, ids: [a.id, b.id] });
+    }
+  }
+
+  // hoge meubels onder een schuin dak
+  for (const it of solid) {
+    const room = roomOf(plan, it);
+    if (!room?.slopes?.length) continue;
+    const p = poly.get(it.id)!;
+    for (const sl of room.slopes) {
+      const e = roomEdges(room)[sl.edge];
+      if (!e) continue;
+      const n = edgeNormal(room, sl.edge);
+      // dichtstbijzijnde punt van het meubel tot de wand, loodrecht gemeten
+      const t = Math.max(0, Math.min(...p.map((q) => (q.x - e.a.x) * n.x + (q.y - e.a.y) * n.y)));
+      const ceiling = Math.min(plan.wallHeight, sl.knee + t * Math.tan((sl.angle * Math.PI) / 180));
+      if (it.h > ceiling + 1) {
+        out.push({ level: "warn", text: `${it.name} (${cm(it.h)} hoog) past niet onder het schuine dak: daar is het plafond ${cm(ceiling)}.`, ids: [it.id] });
+      }
     }
   }
 

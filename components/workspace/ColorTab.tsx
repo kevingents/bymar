@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { postJson, uploadPhoto } from "@/lib/client-api";
-import { DOOR_HEIGHT, WINDOW_HEIGHT, isPolygon, roomArea, roomPerimeter } from "@/lib/floorplan";
+import { isPolygon, roomArea, roomSurfaces } from "@/lib/floorplan";
 import type { Floorplan } from "@/lib/schemas";
 import { euro, storeLink } from "@/lib/stores";
 import type { Project, SavedPalette } from "@/lib/types";
@@ -19,11 +19,7 @@ function inkOn(hex: string) {
 function wallArea(plan: Floorplan, roomId: string, height: number) {
   const r = plan.rooms.find((x) => x.id === roomId);
   if (!r) return 0;
-  const walls = (roomPerimeter(r) * height) / 10000;
-  const holes = plan.openings
-    .filter((o) => o.roomId === r.id)
-    .reduce((s, o) => s + (o.width * (o.type === "door" ? DOOR_HEIGHT : WINDOW_HEIGHT)) / 10000, 0);
-  return Math.max(0, walls - holes);
+  return roomSurfaces(r, height, plan.openings).walls;
 }
 
 export function ColorTab({
@@ -56,7 +52,7 @@ export function ColorTab({
     const room = plan.rooms.find((r) => r.id === roomId);
     if (!room) return null;
     const walls = wallArea(plan, roomId, height);
-    const top = ceiling ? roomArea(room) / 10000 : 0;
+    const top = ceiling ? roomSurfaces(room, height).ceiling : 0;
     const area = walls + top;
     const liters = (area * layers) / Math.max(1, coverage);
     const cans25 = Math.ceil(liters / 2.5);

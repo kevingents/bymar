@@ -14,11 +14,17 @@ import {
   centroid,
   floorColor,
   footprint,
+  edgeNormal,
+  roomEdges,
   roomPoints,
+  slopeRun,
   wallSegments,
   type WallSegment,
 } from "@/lib/floorplan";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { compass, sunLabel, sunPosition } from "@/lib/zon";
+
+export type Sun = { month: number; hour: number };
 
 /** Plattegrond is in cm; 3D in meters. Plan-x wordt 3D-x, plan-y wordt 3D-z. */
 const M = (cm: number) => cm / 100;
@@ -74,8 +80,36 @@ function RoomSurface({ points, y, color, ceiling = false }: { points: { x: numbe
     return new THREE.ShapeGeometry(shape);
   }, [points]);
   return (
-    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} receiveShadow={!ceiling}>
+    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} receiveShadow={!ceiling} castShadow={ceiling}>
       <meshStandardMaterial color={color} roughness={ceiling ? 1 : 0.75} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+/** Schuin dak: van het knieschot omhoog de kamer in, tot de volle wandhoogte. */
+function SlopePlane({ room, edge, knee, angle, height, faint }: { room: import("@/lib/schemas").Room; edge: number; knee: number; angle: number; height: number; faint?: boolean }) {
+  const geometry = useMemo(() => {
+    const e = roomEdges(room)[edge];
+    if (!e) return null;
+    const n = edgeNormal(room, edge);
+    const run = slopeRun({ edge, knee, angle }, height);
+    const k = M(Math.min(knee, height));
+    const H = M(height);
+    const v = [
+      [e.a.x, k, e.a.y],
+      [e.b.x, k, e.b.y],
+      [e.b.x + n.x * run, H, e.b.y + n.y * run],
+      [e.a.x + n.x * run, H, e.a.y + n.y * run],
+    ].map(([x, y, z]) => [M(x), y, M(z)]);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute([...v[0], ...v[1], ...v[2], ...v[0], ...v[2], ...v[3]], 3));
+    g.computeVertexNormals();
+    return g;
+  }, [room, edge, knee, angle, height]);
+  if (!geometry) return null;
+  return (
+    <mesh geometry={geometry} castShadow={!faint} receiveShadow>
+      <meshStandardMaterial color="#f4efe7" roughness={1} side={THREE.DoubleSide} transparent={faint} opacity={faint ? 0.35 : 1} />
     </mesh>
   );
 }
@@ -343,7 +377,54 @@ function WalkControls({ start, walls, keys }: { start: [number, number]; walls: 
 
 /* ------------------------------------------------------------------- Scène */
 
-function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk" | "showcase"; keys: React.RefObject<Keys> }) {
+/** Licht: zonder zon een vaste, zachte belichting; met zon de echte stand voor die maand en dat uur. */
+function Lights({ plan, mode, sun, center, span }: { plan: Floorplan; mode: string; sun?: Sun | null; center: [number, number, number]; span: number }) {
+  const light = useRef<THREE.DirectionalLight>(null);
+  const target = useRef<THREE.Object3D>(null);
+  useEffect(() => {
+    if (light.current && target.current) light.current.target = target.current;
+  }, []);
+  let pos: [number, number, number] = [center[0] + span, span * 1.5, center[2] + span * 0.6];
+  let intensity = 1.6;
+  let color = "#ffffff";
+  let sky = 0.9;
+  if (sun) {
+    const p = sunPosition(sun.month, sun.hour);
+    const theta = ((plan.north ?? 0) + p.azimuth) * (Math.PI / 180);
+    const alt = p.altitude * (Math.PI / 180);
+    const R = span * 2.5;
+    pos = [center[0] + Math.sin(theta) * Math.cos(alt) * R, Math.max(0.2, Math.sin(alt) * R), center[2] - Math.cos(theta) * Math.cos(alt) * R];
+    const up = Math.max(0, Math.sin(alt));
+    intensity = p.altitude > 0 ? 0.5 + 2.6 * Math.min(1, up * 1.4) : 0;
+    color = new THREE.Color("#ff9f5a").lerp(new THREE.Color("#fff6e8"), Math.min(1, up * 2.2)).getStyle();
+    sky = 0.15 + 0.75 * Math.min(1, Math.max(0, up * 2.5));
+  }
+  return (
+    <>
+      <hemisphereLight args={["#fff8ee", "#b9ab98", sky]} />
+      <ambientLight intensity={sun ? 0.08 + sky * 0.2 : 0.25} />
+      <object3D ref={target} position={center} />
+      <directionalLight
+        ref={light}
+        position={pos}
+        intensity={intensity}
+        color={color}
+        castShadow
+        shadow-bias={-0.0004}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-span * 1.2}
+        shadow-camera-right={span * 1.2}
+        shadow-camera-top={span * 1.2}
+        shadow-camera-bottom={-span * 1.2}
+        shadow-camera-far={span * 8}
+      />
+      {mode === "walk" && sun && <color attach="background" args={[new THREE.Color("#1f2430").lerp(new THREE.Color("#cfe0ee"), sky).getStyle()]} />}
+    </>
+  );
+}
+
+function Scene({ plan, mode, keys, sun }: { plan: Floorplan; mode: "orbit" | "walk" | "showcase"; keys: React.RefObject<Keys>; sun?: Sun | null }) {
+  const lampsOn = !sun || sunPosition(sun.month, sun.hour).altitude < 8;
   const walls = useMemo(() => wallSegments(plan), [plan]);
   const b = bounds(plan);
   const center: [number, number, number] = [M((b.minX + b.maxX) / 2), 0, M((b.minY + b.maxY) / 2)];
@@ -357,19 +438,8 @@ function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk" |
 
   return (
     <>
-      {mode !== "showcase" && <color attach="background" args={[mode === "walk" ? "#e9e4dc" : "#efeae2"]} />}
-      <hemisphereLight args={["#fff8ee", "#b9ab98", 0.9]} />
-      <ambientLight intensity={0.25} />
-      <directionalLight
-        position={[center[0] + span, span * 1.5, center[2] + span * 0.6]}
-        intensity={1.6}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-span}
-        shadow-camera-right={span}
-        shadow-camera-top={span}
-        shadow-camera-bottom={-span}
-      />
+      {mode !== "showcase" && !(mode === "walk" && sun) && <color attach="background" args={[mode === "walk" ? "#e9e4dc" : "#efeae2"]} />}
+      <Lights plan={plan} mode={mode} sun={sun} center={center} span={span} />
 
       {/* buitenvloer (niet in de showroom: daar zweeft het huis op de pagina) */}
       {mode !== "showcase" && (
@@ -386,14 +456,18 @@ function Scene({ plan, mode, keys }: { plan: Floorplan; mode: "orbit" | "walk" |
           <group key={r.id}>
             <RoomSurface points={pts} y={0} color={floorColor(r.floor)} />
             {mode === "walk" && <RoomSurface points={pts} y={M(plan.wallHeight)} color="#fbfaf7" ceiling />}
-            {mode === "walk" && <pointLight position={[M(c.x), M(plan.wallHeight) - 0.3, M(c.y)]} intensity={2.5} distance={8} color="#fff1dc" />}
+            {mode !== "showcase" &&
+              (r.slopes ?? []).map((sl) => (
+                <SlopePlane key={sl.edge} room={r} edge={sl.edge} knee={sl.knee} angle={sl.angle} height={plan.wallHeight} faint={mode === "orbit"} />
+              ))}
+            {mode === "walk" && <pointLight position={[M(c.x), M(plan.wallHeight) - 0.3, M(c.y)]} intensity={lampsOn ? 2.5 : 0.35} distance={8} color="#fff1dc" />}
           </group>
         );
       })}
 
       {walls.map((s, i) => (
         // In de showroom zijn de muren laag (poppenhuis), zodat je de inrichting goed ziet.
-        <WallPiece key={i} s={s} height={mode === "showcase" ? Math.min(plan.wallHeight, 125) : plan.wallHeight} color={plan.wallColor} />
+        <WallPiece key={i} s={s} height={mode === "showcase" ? Math.min(s.height, 125) : s.height} color={plan.wallColor} />
       ))}
       {plan.items.map((it) => (
         <Furniture key={it.id} it={it} />
@@ -447,6 +521,9 @@ export default function Walkthrough3D({
     canvas?.toBlob((b) => b && onCapture?.(b), "image/png");
   }
   const [mode, setMode] = useState<"orbit" | "walk">("orbit");
+  const [sunOn, setSunOn] = useState(false);
+  const [sun, setSun] = useState<Sun>(() => ({ month: new Date().getMonth() + 1, hour: 14 }));
+  const sunInfo = sunPosition(sun.month, sun.hour);
   const keys = useRef<Keys>({ f: false, b: false, l: false, r: false });
   // Overzicht: hoog en schuin van voren, zodat je over de voormuren heen het huis in kijkt.
   const orbitStart = useMemo<[number, number, number]>(() => {
@@ -497,7 +574,7 @@ export default function Walkthrough3D({
         camera={{ fov: mode === "walk" ? 70 : 45, near: 0.05, far: 200, position: orbitStart }}
         key={mode}
       >
-        <Scene plan={plan} mode={mode} keys={keys} />
+        <Scene plan={plan} mode={mode} keys={keys} sun={sunOn ? sun : null} />
       </Canvas>
 
       <div className="absolute left-3 top-3 flex gap-1 rounded-full bg-surface/90 p-1 text-sm shadow-sm backdrop-blur">
@@ -507,7 +584,34 @@ export default function Walkthrough3D({
         <button className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ${mode === "walk" ? "bg-ink text-bg" : "text-ink-2"}`} onClick={() => setMode("walk")}>
           <Icon name="walk" size={16} /> Rondlopen
         </button>
+        <button
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ${sunOn ? "bg-accent text-accent-ink" : "text-ink-2"}`}
+          onClick={() => setSunOn((s) => !s)}
+          aria-pressed={sunOn}
+        >
+          <Icon name="sun" size={16} /> Zon
+        </button>
       </div>
+
+      {sunOn && (
+        <div className="absolute left-3 top-14 w-64 rounded-2xl bg-surface/95 p-3 text-sm shadow-sm backdrop-blur">
+          <p className="font-medium">{sunLabel(sun.month, sun.hour)}</p>
+          <p className="text-xs text-ink-3">
+            {sunInfo.altitude > 0
+              ? `Zon uit het ${compass(sunInfo.azimuth)}, ${Math.round(sunInfo.altitude)}° hoog`
+              : "De zon is onder; de lampen zijn aan"}
+          </p>
+          <label className="mt-2 block text-xs text-ink-2">
+            Maand
+            <input type="range" min={1} max={12} step={1} value={sun.month} onChange={(e) => setSun({ ...sun, month: Number(e.target.value) })} className="w-full accent-[var(--accent)]" />
+          </label>
+          <label className="block text-xs text-ink-2">
+            Tijd
+            <input type="range" min={5} max={22} step={0.25} value={sun.hour} onChange={(e) => setSun({ ...sun, hour: Number(e.target.value) })} className="w-full accent-[var(--accent)]" />
+          </label>
+          {plan.north === undefined && <p className="mt-1 text-xs text-ink-3">Tip: zet bij de plattegrond waar het noorden is.</p>}
+        </div>
+      )}
 
       {onCapture && (
         <button

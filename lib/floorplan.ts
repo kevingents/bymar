@@ -1,4 +1,4 @@
-import type { FloorItem, Floorplan, FurnitureType, Opening, Room, Wall } from "./schemas";
+import type { FloorItem, Floorplan, FurnitureType, Opening, Room, Wall, Slope } from "./schemas";
 
 export const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -238,6 +238,8 @@ export type WallSegment = {
   b: P;
   /** "full" = dicht, "door" = alleen boven de deur, "window" = onder- en bovenstuk */
   kind: "full" | "door" | "window";
+  /** Hoogte in cm (lager bij een knieschot). */
+  height: number;
 };
 
 /**
@@ -246,11 +248,14 @@ export type WallSegment = {
  */
 export function wallSegments(plan: Floorplan): WallSegment[] {
   const r1 = (v: number) => Math.round(v);
-  const lines = new Map<string, { a: P; b: P }>();
+  const lines = new Map<string, { a: P; b: P; height: number }>();
   for (const r of plan.rooms) {
+    const hs = edgeHeights(r, plan.wallHeight);
     for (const e of roomEdges(r)) {
       const [p, q] = [e.a, e.b].sort((u, v) => u.x - v.x || u.y - v.y);
-      lines.set(`${r1(p.x)},${r1(p.y)}|${r1(q.x)},${r1(q.y)}`, { a: p, b: q });
+      const key = `${r1(p.x)},${r1(p.y)}|${r1(q.x)},${r1(q.y)}`;
+      // gedeelde wand: de hoogste wint (de buurkamer heeft geen schuin dak)
+      lines.set(key, { a: p, b: q, height: Math.max(hs[e.i], lines.get(key)?.height ?? 0) });
     }
   }
   const openings = plan.openings.map((o) => openingGeom(o, plan.rooms)).filter((x) => x !== null);
@@ -275,11 +280,11 @@ export function wallSegments(plan: Floorplan): WallSegment[] {
     const at = (t: number) => ({ x: line.a.x + d.x * t, y: line.a.y + d.y * t });
     let cursor = 0;
     for (const c of cuts) {
-      if (c.s > cursor) out.push({ a: at(cursor), b: at(c.s), kind: "full" });
-      out.push({ a: at(c.s), b: at(c.e), kind: c.kind === "door" ? "door" : "window" });
+      if (c.s > cursor) out.push({ a: at(cursor), b: at(c.s), kind: "full", height: line.height });
+      out.push({ a: at(c.s), b: at(c.e), kind: c.kind === "door" ? "door" : "window", height: line.height });
       cursor = Math.max(cursor, c.e);
     }
-    if (cursor < L) out.push({ a: at(cursor), b: at(L), kind: "full" });
+    if (cursor < L) out.push({ a: at(cursor), b: at(L), kind: "full", height: line.height });
   }
   return out;
 }
@@ -355,6 +360,7 @@ export function floorplanSummary(plan: Floorplan | null | undefined) {
         ? `Ruimte "${r.name}": vrije vorm, ${(roomArea(r) / 10000).toFixed(1)} m2, hoekpunten (cm) ${roomPoints(r).map((p) => `(${Math.round(p.x)},${Math.round(p.y)})`).join(" ")}, vloer ${r.floor}.`
         : `Ruimte "${r.name}": ${r.w} x ${r.h} cm (${((r.w * r.h) / 10000).toFixed(1)} m2), x ${r.x}-${r.x + r.w}, y ${r.y}-${r.y + r.h}, vloer ${r.floor}.`,
     );
+    for (const sl of r.slopes ?? []) lines.push(`  Schuin dak boven wand ${sl.edge + 1}: knieschot ${sl.knee} cm, helling ${sl.angle} graden.`);
     for (const o of plan.openings.filter((x) => x.roomId === r.id)) {
       lines.push(
         o.edge !== undefined && isPolygon(r)
@@ -446,5 +452,70 @@ export function fitOpenings(plan: Floorplan): Floorplan {
     changed = true;
     return { ...o, edge, width: Math.round(width), offset: Math.round(offset) };
   });
-  return changed ? { ...plan, openings } : plan;
+  const rooms = plan.rooms.map((r) => {
+    if (!r.slopes?.length) return r;
+    const n = roomPoints(r).length;
+    const ok = r.slopes.filter((s) => s.edge < n);
+    if (ok.length === r.slopes.length) return r;
+    changed = true;
+    return { ...r, slopes: ok };
+  });
+  return changed ? { ...plan, openings, rooms } : plan;
+}
+
+/* ------------------------------------------------------------------ Schuine daken */
+
+/** Normaal van een wand die de ruimte in wijst. */
+export function edgeNormal(r: Room, edge: number): P {
+  const e = roomEdges(r)[edge];
+  if (!e) return { x: 0, y: 1 };
+  const L = len(sub(e.b, e.a)) || 1;
+  const n = { x: -(e.b.y - e.a.y) / L, y: (e.b.x - e.a.x) / L };
+  const mid = { x: (e.a.x + e.b.x) / 2, y: (e.a.y + e.b.y) / 2 };
+  return pointInPolygon({ x: mid.x + n.x * 5, y: mid.y + n.y * 5 }, roomPoints(r)) ? n : { x: -n.x, y: -n.y };
+}
+
+/** Hoe ver (cm) het schuine dak de kamer in loopt tot het de volle wandhoogte haalt. */
+export function slopeRun(s: Slope, height: number) {
+  const rise = Math.max(0, height - s.knee);
+  const t = Math.tan((Math.max(10, Math.min(80, s.angle)) * Math.PI) / 180);
+  return rise / t;
+}
+
+/** Afstand vanaf de wand waar het plafond een bepaalde hoogte heeft (bijv. 180 cm stahoogte). */
+export function slopeDistanceAt(s: Slope, height: number, at: number) {
+  if (at <= s.knee) return 0;
+  return Math.min(slopeRun(s, height), slopeRun(s, at));
+}
+
+/** Hoogte van elke wand van de ruimte (knieschot bij een schuin dak). */
+export function edgeHeights(r: Room, height: number) {
+  return roomEdges(r).map((e) => {
+    const s = r.slopes?.find((x) => x.edge === e.i);
+    return s ? Math.min(height, s.knee) : height;
+  });
+}
+
+/** Te schilderen oppervlak (m2): wanden en plafond, rekening houdend met schuine daken en openingen. */
+export function roomSurfaces(r: Room, height: number, openings: Opening[] = []) {
+  const edges = roomEdges(r);
+  const lens = edges.map((e) => len(sub(e.b, e.a)));
+  const heights = edgeHeights(r, height);
+  let walls = lens.reduce((s, L, i) => s + L * heights[i], 0);
+  let ceiling = roomArea(r);
+  for (const s of r.slopes ?? []) {
+    const L = lens[s.edge];
+    if (L === undefined) continue;
+    const run = slopeRun(s, height);
+    const rise = Math.max(0, height - s.knee);
+    ceiling += L * (Math.hypot(run, rise) - run);
+    // de twee zijwanden missen een driehoek boven het schuine dak
+    for (const nb of [(s.edge - 1 + edges.length) % edges.length, (s.edge + 1) % edges.length]) {
+      if (!r.slopes?.some((x) => x.edge === nb)) walls -= (rise * Math.min(run, lens[nb])) / 2;
+    }
+  }
+  const holes = openings
+    .filter((o) => o.roomId === r.id)
+    .reduce((s, o) => s + o.width * (o.type === "door" ? DOOR_HEIGHT : WINDOW_HEIGHT), 0);
+  return { walls: Math.max(0, walls - holes) / 10000, ceiling: ceiling / 10000 };
 }
